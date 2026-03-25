@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login/Register - Drug Locator</title>
+    <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+    <header>
+        <nav class="navbar">
+            <div class="logo">Drug Locator</div>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="search.html">Search Medicine</a></li>
+                <li><a href="pharmacies.html">Pharmacies</a></li>
+                <li><a href="cart.html">Cart</a></li>
+                <li><a href="login.html" class="active">Login/Register</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <section class="login-section">
+            <h1>Login</h1>
+            <form class="login-form">
+                <label for="user-email">Email</label>
+                <input type="email" id="user-email" name="email" required>
+                <label for="user-password">Password</label>
+                <input type="password" id="user-password" name="password" required>
+                <button type="submit">Login</button>
+            </form>
+        </section>
+        <section class="register-section">
+            <h1>Pharmacy Registration</h1>
+            <form class="register-form">
+                <label for="pharmacy-name">Pharmacy Name</label>
+                <input type="text" id="pharmacy-name" name="pharmacy-name" required>
+                <label for="pharmacy-email">Email</label>
+                <input type="email" id="pharmacy-email" name="pharmacy-email" required>
+                <label for="pharmacy-password">Password</label>
+                <input type="password" id="pharmacy-password" name="pharmacy-password" required>
+                <button type="submit">Register</button>
+            </form>
+        </section>
+    </main>
+    <footer>
+        <p>&copy; 2026 Drug Locator | E-Pharmacy System | Hawassa City</p>
+    </footer>
+</body>
+</html>
