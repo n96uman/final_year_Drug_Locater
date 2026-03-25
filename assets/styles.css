@@ -1,3 +1,76 @@
+/* Medicine card images */
+.medicine-img {
+    width: 60px;
+    height: 60px;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto 0.7rem auto;
+    background: var(--gray);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+/* Edit profile icon */
+.edit-profile-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 0.5rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.2rem;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+.edit-profile-icon:hover {
+    background: var(--primary-light);
+}
+
+/* Logout button */
+.logout-btn {
+    background: #fff;
+    color: var(--primary);
+    border: 1px solid var(--primary);
+    border-radius: 4px;
+    padding: 0.7rem 2rem;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+    font-weight: 500;
+}
+.logout-btn:hover {
+    background: var(--primary);
+    color: #fff;
+}
+/* Profile section styles */
+.profile-section {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 2rem 1.5rem 1.5rem 1.5rem;
+    box-shadow: 0 2px 8px rgba(25, 118, 210, 0.04);
+    margin-bottom: 2rem;
+    text-align: center;
+}
+.profile-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+.profile-img {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--primary);
+    background: var(--gray);
+}
+.profile-info p {
+    margin: 0.2rem 0;
+    font-size: 1rem;
+}
 /* Form footer for login/register links */
 .form-footer {
     margin-top: 1.2rem;
@@ -206,16 +279,22 @@ main {
 }
 .remove-btn {
     background: #fff;
-    color: var(--primary);
-    border: 1px solid var(--primary);
-    padding: 0.5rem 1rem;
+    color: #e53935;
+    border: 1.5px solid #e53935;
+    padding: 0.5rem 1.2rem;
     border-radius: 4px;
     cursor: pointer;
-    transition: background 0.2s, color 0.2s;
+    font-weight: 500;
+    font-size: 1rem;
+    align-self: center;
+    margin-left: 1.5rem;
+    transition: background 0.2s, color 0.2s, border 0.2s;
+    box-shadow: 0 1px 4px rgba(229,57,53,0.06);
 }
 .remove-btn:hover {
-    background: var(--primary);
+    background: #e53935;
     color: #fff;
+    border-color: #b71c1c;
 }
 .cart-total {
     text-align: right;
