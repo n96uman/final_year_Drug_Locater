@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Manage pharmacy medicines — quantity, price, expiry, edit and delete." />
+    <title>Inventory | Pharmacy portal</title>
+    <link rel="stylesheet" href="../css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+
+    <header class="site-header site-header--portal">
+      <div class="header-inner header-inner--portal">
+        <a
+          class="portal-back portal-logout"
+          href="../index.html"
+          aria-label="Log out and return to customer site"
+        >
+          Logout
+        </a>
+        <p class="site-title">
+          <a href="dashboard.html">
+            E-Pharmacy Drug Locator
+            <span>Pharmacy portal · Hawassa</span>
+          </a>
+        </p>
+        <span class="portal-badge">Pharmacy</span>
+      </div>
+    </header>
+
+    <div class="dash-layout">
+      <aside class="dash-sidebar" aria-label="Dashboard navigation">
+        <input type="checkbox" id="dash-nav" class="dash-nav-checkbox" hidden />
+        <label for="dash-nav" class="dash-nav-toggle">Menu</label>
+        <nav class="dash-nav" aria-label="Pharmacy dashboard">
+          <ul>
+            <li><a href="dashboard.html">Dashboard</a></li>
+            <li><a href="inventory.html" aria-current="page">Manage Medicines</a></li>
+            <li><a href="add-medicine.html">Add Medicine</a></li>
+            <li><a href="inventory.html">Inventory</a></li>
+            <li><a href="profile.html">Profile</a></li>
+          </ul>
+        </nav>
+      </aside>
+
+      <main class="dash-main" id="main-content">
+        <h1 class="dash-title">Inventory management</h1>
+        <p class="dash-subtitle">
+          View medicines, update quantity and price inline, or remove listings. Actions are
+          front-end only until wired to your backend.
+        </p>
+
+        <section aria-labelledby="inv-heading">
+          <h2 id="inv-heading" class="visually-hidden">Medicines table</h2>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th scope="col">Medicine name</th>
+                  <th scope="col">Price (ETB)</th>
+                  <th scope="col">Quantity</th>
+                  <th scope="col">Expiry date</th>
+                  <th scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">Paracetamol 500mg tablets</th>
+                  <td>
+                    <label class="visually-hidden" for="price-1">Price</label>
+                    <input type="text" id="price-1" name="price_1" value="85" inputmode="decimal" />
+                  </td>
+                  <td>
+                    <label class="visually-hidden" for="qty-1">Quantity</label>
+                    <input type="number" id="qty-1" name="qty_1" min="0" value="120" />
+                  </td>
+                  <td>
+                    <label class="visually-hidden" for="exp-1">Expiry</label>
+                    <input type="date" id="exp-1" name="exp_1" value="2027-06-01" />
+                  </td>
+                  <td>
+                    <div class="table-actions">
+                      <button type="button" class="btn btn--ghost btn--sm">Edit</button>
+                      <button type="button" class="btn btn--danger btn--sm">Delete</button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">Amoxicillin 250mg capsules</th>
+                  <td>
+                    <label class="visually-hidden" for="price-2">Price</label>
+                    <input type="text" id="price-2" name="price_2" value="320" inputmode="decimal" />
+                  </td>
+                  <td>
+                    <label class="visually-hidden" for="qty-2">Quantity</label>
+                    <input type="number" id="qty-2" name="qty_2" min="0" value="45" />
+                  </td>
+                  <td>
+                    <label class="visually-hidden" for="exp-2">Expiry</label>
+                    <input type="date" id="exp-2" name="exp_2" value="2026-11-15" />
+                  </td>
+                  <td>
+                    <div class="table-actions">
+                      <button type="button" class="btn btn--ghost btn--sm">Edit</button>
+                      <button type="button" class="btn btn--danger btn--sm">Delete</button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">Oral Rehydration Salts</th>
+                  <td>
+                    <label class="visually-hidden" for="price-3">Price</label>
+                    <input type="text" id="price-3" name="price_3" value="45" inputmode="decimal" />
+                  </td>
+                  <td>
+                    <label class="visually-hidden" for="qty-3">Quantity</label>
+                    <input type="number" id="qty-3" name="qty_3" min="0" value="200" />
+                  </td>
+                  <td>
+                    <label class="visually-hidden" for="exp-3">Expiry</label>
+                    <input type="date" id="exp-3" name="exp_3" value="2028-01-10" />
+                  </td>
+                  <td>
+                    <div class="table-actions">
+                      <button type="button" class="btn btn--ghost btn--sm">Edit</button>
+                      <button type="button" class="btn btn--danger btn--sm">Delete</button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">Vitamin C 1000mg</th>
+                  <td>
+                    <label class="visually-hidden" for="price-4">Price</label>
+                    <input type="text" id="price-4" name="price_4" value="180" inputmode="decimal" />
+                  </td>
+                  <td>
+                    <label class="visually-hidden" for="qty-4">Quantity</label>
+                    <input type="number" id="qty-4" name="qty_4" min="0" value="12" />
+                  </td>
+                  <td>
+                    <label class="visually-hidden" for="exp-4">Expiry</label>
+                    <input type="date" id="exp-4" name="exp_4" value="2026-05-20" />
+                  </td>
+                  <td>
+                    <div class="table-actions">
+                      <button type="button" class="btn btn--ghost btn--sm">Edit</button>
+                      <button type="button" class="btn btn--danger btn--sm">Delete</button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="form-hint dash-quick-links">
+            Use <strong>Edit</strong> to focus changes then save via your future API;
+            <strong>Delete</strong> removes a row in a real implementation.
+          </p>
+        </section>
+      </main>
+    </div>
+
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div>
+          <p class="footer-brand">E-Pharmacy Drug Locator · Pharmacy portal</p>
+          <p>Hawassa City — inventory and listing management (frontend prototype).</p>
+        </div>
+        <div class="footer-meta">
+          <p>&copy; <time datetime="2026">2026</time></p>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

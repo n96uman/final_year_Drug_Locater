@@ -1,54 +1,134 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cart - Drug Locator</title>
-    <link rel="stylesheet" href="assets/styles.css">
-</head>
-<body>
-    <header>
-        <nav class="navbar">
-            <a class="logo" href="landing.html">Drug Locator</a>
-            <ul class="nav-links">
-                <li><a href="search.html">Search Medicine</a></li>
-                <li><a href="pharmacies.html">Pharmacies</a></li>
-                <li><a href="cart.html" class="active">Cart</a></li>
-                <li><a href="profile.html">Profile</a></li>
-            </ul>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Your cart — medicines, pharmacy, quantity, total, checkout." />
+    <title>Cart | E-Pharmacy Drug Locator</title>
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+
+    <header class="site-header">
+      <div class="header-inner">
+        <p class="site-title">
+          <a href="index.html">
+            E-Pharmacy Drug Locator
+            <span>Hawassa City · Customer</span>
+          </a>
+        </p>
+        <input type="checkbox" id="nav-menu" class="nav-menu-checkbox" hidden />
+        <label for="nav-menu" class="nav-toggle" aria-label="Toggle navigation menu">
+          <span class="nav-toggle-icon" aria-hidden="true"></span>
+        </label>
+        <nav class="main-nav" aria-label="Primary">
+          <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="search.html">Search Medicine</a></li>
+            <li><a href="pharmacies.html">Pharmacies</a></li>
+            <li><a href="cart.html" aria-current="page">Cart</a></li>
+            <li><a href="login.html">Login</a></li>
+          </ul>
         </nav>
+      </div>
     </header>
-    <main>
-        <section class="cart-section">
-            <h1>Your Cart</h1>
-            <div class="cart-list">
-                <div class="cart-item">
-                    <div class="cart-info">
-                        <h3>Paracetamol</h3>
-                        <p>Pharmacy: HealthPlus</p>
-                        <p>Price: 30 ETB</p>
-                        <p>Quantity: 1</p>
-                    </div>
-                    <button class="remove-btn">Remove</button>
-                </div>
-                <div class="cart-item">
-                    <div class="cart-info">
-                        <h3>Amoxicillin</h3>
-                        <p>Pharmacy: Medico</p>
-                        <p>Price: 50 ETB</p>
-                        <p>Quantity: 2</p>
-                    </div>
-                    <button class="remove-btn">Remove</button>
-                </div>
+
+    <main id="main-content">
+      <div class="page-inner">
+        <header class="page-header">
+          <h1>Shopping cart</h1>
+          <p>
+            Each line shows the medicine, pharmacy name, unit price, and quantity. Remove items or
+            continue to checkout (UI only in this prototype).
+          </p>
+        </header>
+
+        <div class="cart-layout">
+          <div class="cart-table-wrap">
+            <table class="cart-table">
+              <thead>
+                <tr>
+                  <th scope="col">Medicine name</th>
+                  <th scope="col">Pharmacy name</th>
+                  <th scope="col">Price</th>
+                  <th scope="col">Quantity</th>
+                  <th scope="col">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td data-label="Medicine name">Paracetamol 500mg tablets</td>
+                  <td data-label="Pharmacy name">Tabor Health Pharmacy</td>
+                  <td data-label="Price">80 ETB</td>
+                  <td data-label="Quantity">2</td>
+                  <td data-label="Action">
+                    <button type="button" class="btn btn--danger btn--sm">Remove</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td data-label="Medicine name">Oral Rehydration Salts (ORS)</td>
+                  <td data-label="Pharmacy name">Tabor Health Pharmacy</td>
+                  <td data-label="Price">45 ETB</td>
+                  <td data-label="Quantity">1</td>
+                  <td data-label="Action">
+                    <button type="button" class="btn btn--danger btn--sm">Remove</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td data-label="Medicine name">Amoxicillin 250mg capsules</td>
+                  <td data-label="Pharmacy name">Adare Pharma Plus</td>
+                  <td data-label="Price">320 ETB</td>
+                  <td data-label="Quantity">1</td>
+                  <td data-label="Action">
+                    <button type="button" class="btn btn--danger btn--sm">Remove</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <aside class="cart-summary" aria-labelledby="summary-heading">
+            <h2 id="summary-heading">Order summary</h2>
+            <div class="cart-summary__row">
+              <span>Subtotal</span>
+              <span>525 ETB</span>
             </div>
-            <div class="cart-total">
-                <p>Total: <span>130 ETB</span></p>
-                <button class="checkout-btn">Checkout</button>
+            <div class="cart-summary__row">
+              <span>Delivery (demo)</span>
+              <span>50 ETB</span>
             </div>
-        </section>
+            <div class="cart-summary__row cart-summary__row--total">
+              <span>Total price</span>
+              <span>575 ETB</span>
+            </div>
+            <button type="button" class="btn btn--primary btn--block cart-checkout-spacer">Checkout</button>
+            <p class="form-hint">Checkout button is UI-only; no payment is processed.</p>
+          </aside>
+        </div>
+      </div>
     </main>
-    <footer>
-        <p>&copy; 2026 Drug Locator | E-Pharmacy System | Hawassa City</p>
+
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div>
+          <p class="footer-brand">E-Pharmacy Drug Locator</p>
+          <p>
+            Location-based smart medicine search and delivery — <strong>Hawassa City</strong>.
+            Frontend prototype only; not medical advice.
+          </p>
+          <p class="footer-portal-link">
+            Managing a pharmacy?
+            <a href="pharmacy/login.html">Open pharmacy portal</a>
+            <span aria-hidden="true"> · </span>
+            <a href="admin/index.html">Admin console</a>
+          </p>
+        </div>
+        <div class="footer-meta">
+          <p>Hawassa, Ethiopia</p>
+          <p>&copy; <time datetime="2026">2026</time> E-Pharmacy Drug Locator</p>
+        </div>
+      </div>
     </footer>
-</body>
+  </body>
 </html>

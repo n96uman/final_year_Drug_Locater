@@ -1,57 +1,205 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Search Medicine - Drug Locator</title>
-    <link rel="stylesheet" href="assets/styles.css">
-</head>
-<body>
-    <header>
-        <nav class="navbar">
-            <a class="logo" href="landing.html">Drug Locator</a>
-            <ul class="nav-links">
-                <li><a href="search.html" class="active">Search Medicine</a></li>
-                <li><a href="pharmacies.html">Pharmacies</a></li>
-                <li><a href="cart.html">Cart</a></li>
-                <li><a href="profile.html">Profile</a></li>
-            </ul>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Search medicines in Hawassa — compare prices, discounts, and pharmacies." />
+    <title>Search Medicine | E-Pharmacy Drug Locator</title>
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+
+    <header class="site-header">
+      <div class="header-inner">
+        <p class="site-title">
+          <a href="index.html">
+            E-Pharmacy Drug Locator
+            <span>Hawassa City · Customer</span>
+          </a>
+        </p>
+        <input type="checkbox" id="nav-menu" class="nav-menu-checkbox" hidden />
+        <label for="nav-menu" class="nav-toggle" aria-label="Toggle navigation menu">
+          <span class="nav-toggle-icon" aria-hidden="true"></span>
+        </label>
+        <nav class="main-nav" aria-label="Primary">
+          <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="search.html" aria-current="page">Search Medicine</a></li>
+            <li><a href="pharmacies.html">Pharmacies</a></li>
+            <li><a href="cart.html">Cart</a></li>
+            <li><a href="login.html">Login</a></li>
+          </ul>
         </nav>
+      </div>
     </header>
-    <main>
-        <section class="search-section">
-            <h1>Search Medicine</h1>
-            <form class="search-bar" action="#">
-                <input type="text" placeholder="Enter medicine name..." name="q">
-                <button type="submit">Search</button>
-            </form>
-            <div class="medicine-list">
-                <div class="medicine-card">
-                    <h3>Paracetamol</h3>
-                    <p>Pharmacy: HealthPlus</p>
-                    <p>Price: 30 ETB</p>
-                    <p>Location: Piazza</p>
-                    <button>Add to Cart</button>
+
+    <main id="main-content">
+      <div class="page-inner">
+        <header class="page-header">
+          <h1>Search medicine</h1>
+          <p>
+            Browse medicines listed by pharmacies. Each card shows pricing and discount when
+            available. After you pick a product, compare which pharmacies stock it on the pharmacy
+            results view.
+          </p>
+        </header>
+
+        <form class="search-bar search-bar--wide search-form-spacing" role="search" action="search.html" method="get">
+          <label for="medicine-search">Medicine name</label>
+          <input
+            type="search"
+            id="medicine-search"
+            name="q"
+            placeholder="Search by medicine name…"
+            autocomplete="off"
+          />
+          <button type="submit" class="btn btn--primary">Search</button>
+        </form>
+
+        <div class="results-toolbar">
+          <h2 id="results-heading" class="section-title">Search results</h2>
+          <a href="pharmacy-results.html" class="btn btn--outline btn--sm">View pharmacies for Paracetamol 500mg</a>
+        </div>
+        <p class="search-page-intro search-page-intro--tight">
+          Sample listings — connect to your API or React state later.
+        </p>
+
+        <section aria-labelledby="results-heading">
+          <div class="card-grid card-grid--medicines">
+            <article class="medicine-card">
+              <h3 class="medicine-card__name">Paracetamol 500mg tablets</h3>
+              <dl class="medicine-card__meta">
+                <div>
+                  <dt>Pharmacy</dt>
+                  <dd>Hawassa Care Pharmacy</dd>
                 </div>
-                <div class="medicine-card">
-                    <h3>Amoxicillin</h3>
-                    <p>Pharmacy: Medico</p>
-                    <p>Price: 50 ETB</p>
-                    <p>Location: Menaheria</p>
-                    <button>Add to Cart</button>
+                <div>
+                  <dt>Location</dt>
+                  <dd>Piassa, near Commercial Bank · ~1.2 km</dd>
                 </div>
-                <div class="medicine-card">
-                    <h3>Cough Syrup</h3>
-                    <p>Pharmacy: CityCare</p>
-                    <p>Price: 40 ETB</p>
-                    <p>Location: Daka</p>
-                    <button>Add to Cart</button>
+              </dl>
+              <div class="medicine-card__pricing">
+                <span class="medicine-card__badge">Sale</span>
+                <p class="medicine-card__price--was">95 ETB</p>
+                <p class="medicine-card__price--current">85 ETB</p>
+              </div>
+              <button type="button" class="btn btn--primary btn--sm">Add to Cart</button>
+            </article>
+            <article class="medicine-card">
+              <h3 class="medicine-card__name">Paracetamol 500mg tablets</h3>
+              <dl class="medicine-card__meta">
+                <div>
+                  <dt>Pharmacy</dt>
+                  <dd>Adare Pharma Plus</dd>
                 </div>
-            </div>
+                <div>
+                  <dt>Location</dt>
+                  <dd>Adare sub-city, main road · ~2.4 km</dd>
+                </div>
+              </dl>
+              <div class="medicine-card__pricing">
+                <p class="medicine-card__price--solo">92 ETB</p>
+              </div>
+              <button type="button" class="btn btn--primary btn--sm">Add to Cart</button>
+            </article>
+            <article class="medicine-card">
+              <h3 class="medicine-card__name">Paracetamol 500mg tablets</h3>
+              <dl class="medicine-card__meta">
+                <div>
+                  <dt>Pharmacy</dt>
+                  <dd>Tabor Health Pharmacy</dd>
+                </div>
+                <div>
+                  <dt>Location</dt>
+                  <dd>Tabor, around stadium area · ~0.8 km</dd>
+                </div>
+              </dl>
+              <div class="medicine-card__pricing">
+                <span class="medicine-card__badge">Sale</span>
+                <p class="medicine-card__price--was">88 ETB</p>
+                <p class="medicine-card__price--current">80 ETB</p>
+              </div>
+              <button type="button" class="btn btn--primary btn--sm">Add to Cart</button>
+            </article>
+            <article class="medicine-card">
+              <h3 class="medicine-card__name">Amoxicillin 250mg capsules</h3>
+              <dl class="medicine-card__meta">
+                <div>
+                  <dt>Pharmacy</dt>
+                  <dd>Adare Pharma Plus</dd>
+                </div>
+                <div>
+                  <dt>Location</dt>
+                  <dd>Adare sub-city, main road · ~2.4 km</dd>
+                </div>
+              </dl>
+              <div class="medicine-card__pricing">
+                <p class="medicine-card__price--solo">320 ETB</p>
+              </div>
+              <button type="button" class="btn btn--primary btn--sm">Add to Cart</button>
+            </article>
+            <article class="medicine-card">
+              <h3 class="medicine-card__name">Amoxicillin 250mg capsules</h3>
+              <dl class="medicine-card__meta">
+                <div>
+                  <dt>Pharmacy</dt>
+                  <dd>Hawassa Care Pharmacy</dd>
+                </div>
+                <div>
+                  <dt>Location</dt>
+                  <dd>Piassa, near Commercial Bank · ~1.2 km</dd>
+                </div>
+              </dl>
+              <div class="medicine-card__pricing">
+                <span class="medicine-card__badge">Sale</span>
+                <p class="medicine-card__price--was">350 ETB</p>
+                <p class="medicine-card__price--current">335 ETB</p>
+              </div>
+              <button type="button" class="btn btn--primary btn--sm">Add to Cart</button>
+            </article>
+            <article class="medicine-card">
+              <h3 class="medicine-card__name">Oral Rehydration Salts (ORS)</h3>
+              <dl class="medicine-card__meta">
+                <div>
+                  <dt>Pharmacy</dt>
+                  <dd>Tabor Health Pharmacy</dd>
+                </div>
+                <div>
+                  <dt>Location</dt>
+                  <dd>Tabor, around stadium area · ~0.8 km</dd>
+                </div>
+              </dl>
+              <div class="medicine-card__pricing">
+                <p class="medicine-card__price--solo">45 ETB</p>
+              </div>
+              <button type="button" class="btn btn--primary btn--sm">Add to Cart</button>
+            </article>
+          </div>
         </section>
+      </div>
     </main>
-    <footer>
-        <p>&copy; 2026 Drug Locator | E-Pharmacy System | Hawassa City</p>
+
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div>
+          <p class="footer-brand">E-Pharmacy Drug Locator</p>
+          <p>
+            Location-based smart medicine search and delivery — <strong>Hawassa City</strong>.
+            Frontend prototype only; not medical advice.
+          </p>
+          <p class="footer-portal-link">
+            Managing a pharmacy?
+            <a href="pharmacy/login.html">Open pharmacy portal</a>
+            <span aria-hidden="true"> · </span>
+            <a href="admin/index.html">Admin console</a>
+          </p>
+        </div>
+        <div class="footer-meta">
+          <p>Hawassa, Ethiopia</p>
+          <p>&copy; <time datetime="2026">2026</time> E-Pharmacy Drug Locator</p>
+        </div>
+      </div>
     </footer>
-</body>
+  </body>
 </html>

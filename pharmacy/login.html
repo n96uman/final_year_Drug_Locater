@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Pharmacy portal login — E-Pharmacy Drug Locator." />
+    <title>Pharmacy login | E-Pharmacy Drug Locator</title>
+    <link rel="stylesheet" href="../css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+
+    <header class="site-header site-header--portal">
+      <div class="header-inner header-inner--portal">
+        <a
+          class="portal-back portal-logout"
+          href="../index.html"
+          aria-label="Log out and return to customer site"
+        >
+          Logout
+        </a>
+        <p class="site-title">
+          <a href="dashboard.html">
+            E-Pharmacy Drug Locator
+            <span>Pharmacy portal · Hawassa</span>
+          </a>
+        </p>
+        <span class="portal-badge">Pharmacy</span>
+      </div>
+    </header>
+
+    <main id="main-content">
+      <div class="page-inner page-inner--narrow">
+        <header class="page-header">
+          <h1>Pharmacy login</h1>
+          <p>Sign in to manage medicines, inventory, and your pharmacy profile.</p>
+        </header>
+
+        <section class="form-panel" aria-labelledby="pharm-login-heading">
+          <h2 id="pharm-login-heading" class="visually-hidden">Credentials</h2>
+          <form action="dashboard.html" method="get">
+            <div class="form-group">
+              <label for="pharm-email">Email</label>
+              <input type="email" id="pharm-email" name="email" autocomplete="username" required />
+            </div>
+            <div class="form-group">
+              <label for="pharm-pass">Password</label>
+              <input
+                type="password"
+                id="pharm-pass"
+                name="password"
+                autocomplete="current-password"
+                required
+              />
+            </div>
+            <button type="submit" class="btn btn--primary btn--block">Log in to dashboard</button>
+            <p class="form-hint">
+              Demo: submit navigates to the dashboard layout. Replace with real authentication.
+            </p>
+          </form>
+        </section>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div>
+          <p class="footer-brand">E-Pharmacy Drug Locator · Pharmacy portal</p>
+          <p>Hawassa City — inventory and listing management (frontend prototype).</p>
+        </div>
+        <div class="footer-meta">
+          <p>&copy; <time datetime="2026">2026</time></p>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
