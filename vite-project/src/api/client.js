@@ -1,10 +1,4 @@
-﻿const configuredBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').trim()
-const apiBaseCandidates = [
-  configuredBaseUrl,
-  'http://localhost:5000/api',
-  'http://127.0.0.1:5000/api',
-].filter(Boolean)
-const uniqueApiBaseCandidates = [...new Set(apiBaseCandidates.map((u) => u.replace(/\/+$/, '')))]
+﻿const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').trim().replace(/\/+$/, '')
 
 async function parseResponse(response) {
   const text = await response.text()
@@ -22,25 +16,7 @@ async function requestWithBase(baseUrl, path, init) {
   return data
 }
 
-async function runRequest(path, init) {
-  let lastError = null
-  for (const baseUrl of uniqueApiBaseCandidates) {
-    try {
-      return await requestWithBase(baseUrl, path, init)
-    } catch (error) {
-      lastError = error
-      // Try next local candidate only on network-like failures.
-      const msg = String(error?.message || '')
-      const isNetworkIssue =
-        msg.includes('Failed to fetch') ||
-        msg.includes('NetworkError') ||
-        msg.includes('ERR_CONNECTION_REFUSED') ||
-        msg.includes('Load failed')
-      if (!isNetworkIssue) break
-    }
-  }
-  throw lastError || new Error('Unable to connect to API server.')
-}
+async function runRequest(path, init) { return requestWithBase(API_BASE_URL, path, init) }
 
 async function apiFetch(path, { method = 'GET', body, token } = {}) {
   return runRequest(path, {
