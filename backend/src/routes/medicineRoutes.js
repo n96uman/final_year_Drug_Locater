@@ -1,0 +1,10 @@
+﻿const express = require('express')
+const c = require('../controllers/medicineController')
+const { protect, allowRoles } = require('../middleware/authMiddleware')
+const r = express.Router()
+r.get('/', c.getMedicines)
+r.get('/mine', protect, allowRoles('pharmacy'), c.getMine)
+r.post('/', protect, allowRoles('pharmacy'), c.create)
+r.put('/:id', protect, allowRoles('pharmacy'), c.update)
+r.delete('/:id', protect, allowRoles('pharmacy'), c.remove)
+module.exports = r

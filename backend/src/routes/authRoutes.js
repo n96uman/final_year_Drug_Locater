@@ -1,0 +1,10 @@
+﻿const express = require('express')
+const { register, login, me, updateProfile } = require('../controllers/authController')
+const { protect } = require('../middleware/authMiddleware')
+const { uploadProfileImage } = require('../middleware/uploadMiddleware')
+const r = express.Router()
+r.post('/register', uploadProfileImage.single('profileImage'), register)
+r.post('/login', login)
+r.get('/me', protect, me)
+r.put('/profile', protect, uploadProfileImage.single('profileImage'), updateProfile)
+module.exports = r
