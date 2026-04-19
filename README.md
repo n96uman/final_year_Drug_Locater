@@ -1,6 +1,6 @@
-﻿# E-Pharmacy Drug Locator (Hawassa)
+﻿# E-Pharmacy (Hawassa)
 
-E-Pharmacy Drug Locator is a full-stack web app that helps customers find medicines and order from pharmacies in Hawassa. It includes a customer-facing storefront and a pharmacy dashboard for inventory and order management.
+E-Pharmacy is a full-stack web app that helps customers find medicines and order from pharmacies in Hawassa. It includes a customer-facing storefront and a pharmacy dashboard for inventory and order management.
 
 ## Features
 

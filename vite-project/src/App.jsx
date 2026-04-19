@@ -140,7 +140,7 @@ function Login() {
     if (!r.ok) return setErr(r.message)
     nav(r.user.role === 'pharmacy' ? '/pharmacy-dashboard' : (loc.state?.from || '/'))
   }
-  return <div className="page-inner page-inner--narrow"><header className="page-header"><h1>Login</h1></header><section className="form-panel"><form onSubmit={submit}><div className="form-group"><label>Email</label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></div><div className="form-group"><label>Password</label><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required /></div><button className="btn btn--primary btn--block">Sign in</button>{err ? <p className="form-hint">{err}</p> : null}</form><div className="auth-alt"><p className="auth-alt__label">New to E-Pharmacy Drug Locator?</p><Link to="/register" state={{ fromLogin: true }} className="btn btn--outline btn--block">Sign up</Link></div></section></div>
+  return <div className="page-inner page-inner--narrow"><header className="page-header"><h1>Login</h1></header><section className="form-panel"><form onSubmit={submit}><div className="form-group"><label>Email</label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></div><div className="form-group"><label>Password</label><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required /></div><button className="btn btn--primary btn--block">Sign in</button>{err ? <p className="form-hint">{err}</p> : null}</form><div className="auth-alt"><p className="auth-alt__label">New to E-Pharmacy?</p><Link to="/register" state={{ fromLogin: true }} className="btn btn--outline btn--block">Sign up</Link></div></section></div>
 }
 
 function Register() {
@@ -210,7 +210,7 @@ function PharmacyLayout({ activeOrdersCount }) {
   return (
     <>
       <a className="skip-link" href="#main-content">Skip to main content</a>
-      <header className="site-header site-header--portal"><div className="header-inner header-inner--portal"><p className="site-title"><Link to="/pharmacy-dashboard">E-Pharmacy Drug Locator<span>Pharmacy portal · Hawassa</span></Link></p><span className="portal-badge">Active orders {activeOrdersCount}</span></div></header>
+      <header className="site-header site-header--portal"><div className="header-inner header-inner--portal"><p className="site-title"><Link to="/pharmacy-dashboard">E-Pharmacy<span>Pharmacy portal · Hawassa</span></Link></p><span className="portal-badge">Active orders {activeOrdersCount}</span></div></header>
       <div className="dash-layout"><aside className="dash-sidebar"><input type="checkbox" id="dash-nav" className="dash-nav-checkbox" hidden /><label htmlFor="dash-nav" className="dash-nav-toggle">Menu</label><nav className="dash-nav"><ul><li><NavLink to="/pharmacy-dashboard">Dashboard</NavLink></li><li><NavLink to="/pharmacy-orders">Orders</NavLink></li><li><NavLink to="/inventory">Manage Medicines</NavLink></li><li><NavLink to="/add-medicine">Add Medicine</NavLink></li><li><NavLink to="/pharmacy-profile">Profile</NavLink></li></ul></nav></aside><main className="dash-main" id="main-content"><Outlet /></main></div>
       <CartToast />
       <Footer />

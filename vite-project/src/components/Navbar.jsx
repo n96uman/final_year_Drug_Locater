@@ -26,7 +26,7 @@ export default function Navbar() {
       <div className="header-inner">
         <p className="site-title">
           <NavLink to="/">
-            E-Pharmacy Drug Locator
+            E-Pharmacy
             <span>Hawassa City · Customer</span>
           </NavLink>
         </p>
