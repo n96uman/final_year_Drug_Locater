@@ -1,19 +1,20 @@
 ﻿/* E-Pharmacy Drug Locator â€” customer + pharmacy portal (expandable for React/JS) */
 
 :root {
-  --color-bg: #f8fafc;
+  --color-bg: #f3f7ff;
   --color-surface: #ffffff;
-  --color-border: #e2e8f0;
-  --color-text: #1e293b;
-  --color-text-muted: #64748b;
-  --color-primary: #0d6efd;
-  --color-primary-dark: #0b5ed7;
-  --color-primary-soft: #e8f1ff;
-  --color-accent: #0ea5e9;
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
-  --shadow-md: 0 4px 14px rgba(15, 23, 42, 0.08);
-  --shadow-hover: 0 8px 24px rgba(13, 110, 253, 0.12);
-  --radius: 12px;
+  --color-border: #d9e3f3;
+  --color-text: #10203a;
+  --color-text-muted: #566987;
+  --color-primary: #2d6df6;
+  --color-primary-dark: #1f59d4;
+  --color-primary-soft: #eaf1ff;
+  --color-accent: #14b8a6;
+  --gradient-brand: linear-gradient(135deg, #2d6df6 0%, #14b8a6 100%);
+  --shadow-sm: 0 4px 16px rgba(16, 32, 58, 0.06);
+  --shadow-md: 0 10px 28px rgba(16, 32, 58, 0.11);
+  --shadow-hover: 0 16px 36px rgba(45, 109, 246, 0.2);
+  --radius: 14px;
   --radius-sm: 8px;
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --max-width: 1120px;
@@ -37,7 +38,7 @@ body {
   font-size: 1rem;
   line-height: 1.5;
   color: var(--color-text);
-  background-color: var(--color-bg);
+  background: radial-gradient(circle at top right, #eef4ff 0, #f3f7ff 38%, #f3f7ff 100%);
   display: flex;
   flex-direction: column;
 }
@@ -111,8 +112,9 @@ img {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(217, 227, 243, 0.8);
   box-shadow: var(--shadow-sm);
 }
 
@@ -216,7 +218,7 @@ img {
   text-decoration: none;
   padding: 0.35rem 0;
   border-bottom: 2px solid transparent;
-  transition: color 0.2s, border-color 0.2s;
+  transition: color 0.2s, border-color 0.2s, transform 0.2s;
 }
 
 .main-nav a:hover,
@@ -224,6 +226,7 @@ img {
   color: var(--color-primary);
   text-decoration: none;
   border-bottom-color: var(--color-primary);
+  transform: translateY(-1px);
 }
 
 /* ----- Main layout ----- */
@@ -380,13 +383,13 @@ main {
 }
 
 .btn--primary {
-  background: var(--color-primary);
+  background: var(--gradient-brand);
   color: #fff;
   box-shadow: var(--shadow-sm);
 }
 
 .btn--primary:hover {
-  background: var(--color-primary-dark);
+  background: linear-gradient(135deg, #255fe0 0%, #0f9f90 100%);
   box-shadow: var(--shadow-md);
 }
 
@@ -450,15 +453,19 @@ main {
   grid-template-columns: 1fr;
   gap: 2rem;
   align-items: center;
-  padding: 2.5rem 0 2rem;
-  border-bottom: 1px solid var(--color-border);
+  padding: 2.2rem;
+  border: 1px solid var(--color-border);
+  border-radius: calc(var(--radius) + 4px);
+  background: linear-gradient(130deg, #ffffff 0%, #f8fbff 65%, #eef7ff 100%);
   margin-bottom: 2.5rem;
+  box-shadow: var(--shadow-sm);
+  animation: fade-up 0.5s ease both;
 }
 
 @media (min-width: 768px) {
   .hero {
     grid-template-columns: 1.1fr 0.9fr;
-    padding: 3rem 0 2.5rem;
+    padding: 2.7rem;
   }
 }
 
@@ -477,8 +484,8 @@ main {
 }
 
 .hero__visual {
-  background: linear-gradient(145deg, var(--color-primary-soft) 0%, #fff 50%, #e0f2fe 100%);
-  border: 1px solid var(--color-border);
+  background: linear-gradient(145deg, #eef4ff 0%, #ffffff 45%, #e8fffa 100%);
+  border: 1px solid #dbeafe;
   border-radius: var(--radius);
   padding: 2rem;
   min-height: 200px;
@@ -496,7 +503,7 @@ main {
 
 .hero__visual-inner {
   text-align: center;
-  color: var(--color-primary);
+  color: #19428d;
 }
 
 .hero__visual-inner strong {
@@ -525,6 +532,10 @@ main {
   gap: 1.25rem;
 }
 
+.card-grid > * {
+  animation: fade-up 0.45s ease both;
+}
+
 @media (min-width: 600px) {
   .card-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -547,13 +558,14 @@ main {
   flex-direction: column;
   gap: 0.75rem;
   box-shadow: var(--shadow-sm);
-  transition: box-shadow 0.25s, transform 0.2s, border-color 0.2s;
+  transition: box-shadow 0.25s, transform 0.2s, border-color 0.2s, background 0.25s;
 }
 
 .medicine-card:hover {
   box-shadow: var(--shadow-md);
   transform: translateY(-3px);
-  border-color: rgba(13, 110, 253, 0.25);
+  border-color: rgba(45, 109, 246, 0.3);
+  background: #fcfdff;
 }
 
 .medicine-card__name {
@@ -798,11 +810,12 @@ main {
   border-radius: var(--radius);
   padding: 1.75rem;
   box-shadow: var(--shadow-sm);
-  transition: box-shadow 0.25s;
+  transition: box-shadow 0.25s, transform 0.2s;
 }
 
 .form-panel:hover {
   box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
 }
 
 .form-panel h2 {
@@ -869,7 +882,7 @@ main {
 /* ----- Footer ----- */
 .site-footer {
   margin-top: auto;
-  background: var(--color-surface);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
   border-top: 1px solid var(--color-border);
   padding: 2rem 1.25rem;
 }
@@ -997,7 +1010,7 @@ main {
   border-radius: var(--radius);
   padding: 1.35rem;
   box-shadow: var(--shadow-sm);
-  transition: box-shadow 0.25s, transform 0.2s, border-color 0.2s;
+  transition: box-shadow 0.25s, transform 0.2s, border-color 0.2s, background 0.25s;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -1006,7 +1019,8 @@ main {
 .pharmacy-result-card:hover {
   box-shadow: var(--shadow-md);
   transform: translateY(-2px);
-  border-color: rgba(13, 110, 253, 0.25);
+  border-color: rgba(45, 109, 246, 0.25);
+  background: #fcfdff;
 }
 
 .pharmacy-result-card h3 {
@@ -1476,13 +1490,14 @@ main {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  background: var(--color-primary);
+  background: linear-gradient(135deg, #1f59d4 0%, #14b8a6 100%);
   color: #fff;
   padding: 0.65rem 0.8rem;
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-md);
   z-index: 300;
   max-width: min(92vw, 430px);
+  animation: toast-in 0.25s ease;
 }
 
 .cart-toast__text {
@@ -1549,7 +1564,8 @@ main {
   height: 90px;
   border-radius: 999px;
   object-fit: cover;
-  border: 2px solid var(--color-border);
+  border: 2px solid #d8e6ff;
+  box-shadow: 0 8px 24px rgba(45, 109, 246, 0.18);
 }
 
 .profile-avatar-edit {
@@ -1565,4 +1581,37 @@ main {
   font-size: 0.9rem;
   cursor: pointer;
   box-shadow: var(--shadow-sm);
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
