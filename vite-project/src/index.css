@@ -637,6 +637,10 @@ main {
   background: #fcfdff;
 }
 
+[data-theme="dark"] .medicine-card:hover {
+  background: var(--color-surface);
+}
+
 .medicine-card__name {
   margin: 0;
   font-size: 1.0625rem;
@@ -761,6 +765,10 @@ main {
 
 .cart-table tbody tr:hover {
   background: #f8fafc;
+}
+
+[data-theme="dark"] .cart-table tbody tr:hover {
+  background: #16233a;
 }
 
 .cart-summary {
@@ -1106,6 +1114,10 @@ main {
   transform: translateY(-2px);
   border-color: rgba(45, 109, 246, 0.25);
   background: #fcfdff;
+}
+
+[data-theme="dark"] .pharmacy-result-card:hover {
+  background: var(--color-surface);
 }
 
 .pharmacy-result-card h3 {
@@ -1500,6 +1512,10 @@ main {
 
 .data-table tbody tr:hover {
   background: #f8fafc;
+}
+
+[data-theme="dark"] .data-table tbody tr:hover {
+  background: #16233a;
 }
 
 .data-table tbody tr:last-child td {
