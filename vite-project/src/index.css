@@ -138,6 +138,11 @@ img {
   box-shadow: var(--shadow-sm);
 }
 
+[data-theme="dark"] .site-header {
+  background: rgba(12, 20, 35, 0.9);
+  border-bottom: 1px solid #22314d;
+}
+
 .header-inner {
   max-width: var(--max-width);
   margin: 0 auto;
@@ -261,6 +266,12 @@ img {
   color: var(--color-text);
   cursor: pointer;
   transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+
+[data-theme="dark"] .theme-toggle {
+  background: #16233a;
+  border-color: #2a3c5c;
+  color: #e7edf9;
 }
 
 .theme-toggle:hover {
@@ -999,6 +1010,14 @@ main {
     transition: max-height 0.35s ease;
   }
 
+  [data-theme="dark"] .main-nav {
+    background: #0f1727;
+    border-top: 1px solid #22314d;
+    border-radius: 0 0 var(--radius) var(--radius);
+    margin-top: 0.5rem;
+    padding: 0 0.75rem;
+  }
+
   .nav-menu-checkbox:checked ~ .main-nav {
     max-height: 320px;
   }
@@ -1019,6 +1038,10 @@ main {
     display: block;
     padding: 0.65rem 0;
     border-bottom: 1px solid var(--color-border);
+  }
+
+  [data-theme="dark"] .main-nav a {
+    color: #dbe7ff;
   }
 }
 
