@@ -1,4 +1,4 @@
-﻿# E-Pharmacy (Hawassa)
+﻿# E-Pharmacy Drug locater(Hawassa)
 
 E-Pharmacy is a full-stack web app that helps customers find medicines and order from pharmacies in Hawassa. It includes a customer-facing storefront and a pharmacy dashboard for inventory and order management.
 
@@ -114,3 +114,4 @@ After setting env vars, trigger a redeploy. Verify:
 
 - CORS in production only allows configured frontend origins.
 - In local development, CORS is open for easier testing.
+- currently under mentainance
