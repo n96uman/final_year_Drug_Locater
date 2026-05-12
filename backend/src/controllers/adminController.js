@@ -1,6 +1,7 @@
 const User = require('../models/User')
+const { filePublicUrl } = require('../utils/publicFileUrl')
 
-const img = (req, p) => (p?.startsWith('http') ? p : `${req.protocol}://${req.get('host')}${p || ''}`)
+const img = (req, p) => filePublicUrl(req, p)
 
 exports.listPendingPharmacies = async (req, res) => {
   const list = await User.find({ role: 'pharmacy', pharmacyApprovalStatus: 'pending' })

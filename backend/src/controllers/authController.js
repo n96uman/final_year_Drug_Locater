@@ -3,8 +3,9 @@ const jwt = require('jsonwebtoken')
 const User = require('../models/User')
 const { jwtSecret } = require('../config/auth')
 const { isStrongPassword, strongPasswordMessage } = require('../utils/passwordPolicy')
+const { filePublicUrl } = require('../utils/publicFileUrl')
 
-const img = (req, p) => (p?.startsWith('http') ? p : `${req.protocol}://${req.get('host')}${p || ''}`)
+const img = (req, p) => filePublicUrl(req, p)
 const safe = (u, req) => ({
   id: u._id,
   name: u.name,

@@ -11,6 +11,7 @@ import { useAuth } from './context/AuthContext'
 import { useCart } from './context/CartContext'
 import { medicineApi, orderApi, adminApi } from './api/client'
 import { isStrongPassword, strongPasswordHint } from './utils/passwordPolicy'
+import { resolveUploadAssetUrl } from './utils/uploadAssetUrl'
 import doctorHero from './assets/doctor.jfif'
 
 function PublicLayout({ children }) {
@@ -398,20 +399,23 @@ function AdminPage() {
         {error ? <p className="form-hint">{error}</p> : null}
         {!loading && !list.length ? <p className="form-hint">No pharmacies waiting for approval.</p> : null}
         <div className="card-grid card-grid--medicines">
-          {list.map((p) => (
+          {list.map((p) => {
+            const licenceSrc = resolveUploadAssetUrl(p.licenseImage)
+            return (
             <article className="form-panel pharmacy-order-card" key={p.id}>
               <h2>{p.name}</h2>
               <p className="form-hint">{p.email}</p>
-              {p.licenseImage ? (
-                <a href={p.licenseImage} target="_blank" rel="noreferrer" className="form-hint">Open licence image</a>
+              {licenceSrc ? (
+                <a href={licenceSrc} target="_blank" rel="noreferrer" className="form-hint">Open licence image</a>
               ) : null}
-              {p.licenseImage ? <div style={{ marginTop: '0.75rem' }}><img src={p.licenseImage} alt="Licence" style={{ maxWidth: '100%', borderRadius: 8 }} /></div> : null}
+              {licenceSrc ? <div style={{ marginTop: '0.75rem' }}><img src={licenceSrc} alt="Licence" style={{ maxWidth: '100%', borderRadius: 8 }} /></div> : null}
               <div className="table-actions" style={{ marginTop: '1rem' }}>
                 <button type="button" className="btn btn--primary btn--sm" disabled={busyId === p.id} onClick={() => run(adminApi.approvePharmacy, p.id)}>Approve</button>
                 <button type="button" className="btn btn--danger btn--sm btn--danger-solid" disabled={busyId === p.id} onClick={() => run(adminApi.rejectPharmacy, p.id)}>Reject</button>
               </div>
             </article>
-          ))}
+            )
+          })}
         </div>
       </section>
     </div>
