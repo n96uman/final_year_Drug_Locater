@@ -4,18 +4,30 @@ const multer = require('multer')
 const dir = process.env.VERCEL ? path.join('/tmp', 'uploads') : path.join(process.cwd(), 'uploads')
 if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
 
-const ALLOWED_EXT = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp', '.jfif'])
+const MIME_EXT = {
+  'image/jpeg': '.jpg',
+  'image/jpg': '.jpg',
+  'image/pjpeg': '.jpg',
+  'image/png': '.png',
+  'image/gif': '.gif',
+  'image/webp': '.webp',
+  'image/jfif': '.jfif',
+}
 
-function safeImageFilename(fieldname, originalname) {
+function extFromMime(mimetype) {
+  const m = (mimetype || '').toLowerCase().split(';')[0].trim()
+  return MIME_EXT[m] || '.jpg'
+}
+
+function safeImageFilename(fieldname, mimetype) {
   const prefix = fieldname === 'licenseImage' ? 'license' : 'profile'
-  let ext = path.extname(originalname || '').toLowerCase()
-  if (!ALLOWED_EXT.has(ext)) ext = '.jpg'
+  const ext = extFromMime(mimetype)
   return `${prefix}-${Date.now()}${ext}`
 }
 
 const storage = multer.diskStorage({
   destination: (_r, _f, cb) => cb(null, dir),
-  filename: (_req, f, cb) => cb(null, safeImageFilename(f.fieldname, f.originalname)),
+  filename: (_req, f, cb) => cb(null, safeImageFilename(f.fieldname, f.mimetype)),
 })
 const imageMulter = multer({
   storage,

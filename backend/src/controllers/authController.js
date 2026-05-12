@@ -4,8 +4,9 @@ const User = require('../models/User')
 const { jwtSecret } = require('../config/auth')
 const { isStrongPassword, strongPasswordMessage } = require('../utils/passwordPolicy')
 const { filePublicUrl } = require('../utils/publicFileUrl')
+const { sanitizeUploadPath } = require('../utils/sanitizeUploadPath')
 
-const img = (req, p) => filePublicUrl(req, p)
+const img = (req, p) => filePublicUrl(req, sanitizeUploadPath(p))
 const safe = (u, req) => ({
   id: u._id,
   name: u.name,
@@ -36,8 +37,8 @@ exports.register = async (req, res) => {
 
   if (await User.findOne({ email: em })) return res.status(409).json({ message: 'Email already exists' })
 
-  const profilePath = profileFile ? `/uploads/${profileFile.filename}` : 'https://cdn-icons-png.flaticon.com/512/149/149071.png'
-  const licensePath = licenseFile ? `/uploads/${licenseFile.filename}` : undefined
+  const profilePath = profileFile ? sanitizeUploadPath(`/uploads/${profileFile.filename}`) : 'https://cdn-icons-png.flaticon.com/512/149/149071.png'
+  const licensePath = licenseFile ? sanitizeUploadPath(`/uploads/${licenseFile.filename}`) : undefined
 
   const user = await User.create({
     name,
@@ -64,7 +65,7 @@ exports.login = async (req, res) => {
 exports.me = async (req, res) => res.json({ user: safe(req.user, req) })
 exports.updateProfile = async (req, res) => {
   if (req.body.name != null) req.user.name = req.body.name
-  if (req.file) req.user.profileImage = `/uploads/${req.file.filename}`
+  if (req.file) req.user.profileImage = sanitizeUploadPath(`/uploads/${req.file.filename}`)
   await req.user.save()
   res.json({ user: safe(req.user, req) })
 }
