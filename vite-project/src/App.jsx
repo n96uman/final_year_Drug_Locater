@@ -9,7 +9,8 @@ import PharmacyCard from './components/PharmacyCard'
 import CartItem from './components/CartItem'
 import { useAuth } from './context/AuthContext'
 import { useCart } from './context/CartContext'
-import { medicineApi, orderApi } from './api/client'
+import { medicineApi, orderApi, adminApi } from './api/client'
+import { isStrongPassword, strongPasswordHint } from './utils/passwordPolicy'
 
 function PublicLayout({ children }) {
   return (
@@ -28,7 +29,12 @@ function CustomerRoute({ children }) {
   const l = useLocation()
   if (authLoading) return <p className="form-hint">Loading profile...</p>
   if (!currentUser) return <Navigate to="/login" state={{ from: l.pathname }} replace />
-  if (currentUser.role !== 'customer') return <Navigate to="/pharmacy-dashboard" replace />
+  if (currentUser.role === 'admin') return <Navigate to="/admin" replace />
+  if (currentUser.role === 'pharmacy') {
+    const s = currentUser.pharmacyApprovalStatus || 'approved'
+    return <Navigate to={s === 'approved' ? '/pharmacy-dashboard' : '/pharmacy-pending'} replace />
+  }
+  if (currentUser.role !== 'customer') return <Navigate to="/" replace />
   return children
 }
 
@@ -37,6 +43,27 @@ function PharmacyRoute({ children }) {
   if (authLoading) return <p className="form-hint">Loading profile...</p>
   if (!currentUser) return <Navigate to="/login" replace />
   if (currentUser.role !== 'pharmacy') return <Navigate to="/" replace />
+  const status = currentUser.pharmacyApprovalStatus || 'approved'
+  if (status !== 'approved') return <Navigate to="/pharmacy-pending" replace />
+  return children
+}
+
+function PharmacyPendingRoute({ children }) {
+  const { currentUser, authLoading } = useAuth()
+  if (authLoading) return <p className="form-hint">Loading profile...</p>
+  if (!currentUser) return <Navigate to="/login" replace />
+  if (currentUser.role !== 'pharmacy') return <Navigate to="/" replace />
+  const status = currentUser.pharmacyApprovalStatus || 'approved'
+  if (status === 'approved') return <Navigate to="/pharmacy-dashboard" replace />
+  return children
+}
+
+function AdminRoute({ children }) {
+  const { currentUser, authLoading } = useAuth()
+  const l = useLocation()
+  if (authLoading) return <p className="form-hint">Loading profile...</p>
+  if (!currentUser) return <Navigate to="/login" state={{ from: l.pathname }} replace />
+  if (currentUser.role !== 'admin') return <Navigate to="/" replace />
   return children
 }
 
@@ -138,24 +165,57 @@ function Login() {
     e.preventDefault()
     const r = await login({ email, password })
     if (!r.ok) return setErr(r.message)
-    nav(r.user.role === 'pharmacy' ? '/pharmacy-dashboard' : (loc.state?.from || '/'))
+    if (r.user.role === 'admin') return nav('/admin', { replace: true })
+    if (r.user.role === 'pharmacy' && r.user.pharmacyApprovalStatus && r.user.pharmacyApprovalStatus !== 'approved') {
+      return nav('/pharmacy-pending', { replace: true })
+    }
+    if (r.user.role === 'pharmacy') return nav('/pharmacy-dashboard', { replace: true })
+    nav(loc.state?.from || '/')
   }
-  return <div className="page-inner page-inner--narrow"><header className="page-header"><h1>Login</h1></header><section className="form-panel"><form onSubmit={submit}><div className="form-group"><label>Email</label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></div><div className="form-group"><label>Password</label><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required /></div><button className="btn btn--primary btn--block">Sign in</button>{err ? <p className="form-hint">{err}</p> : null}</form><div className="auth-alt"><p className="auth-alt__label">New to E-Pharmacy?</p><Link to="/register" state={{ fromLogin: true }} className="btn btn--outline btn--block">Sign up</Link></div></section></div>
+  return <div className="page-inner page-inner--narrow"><header className="page-header"><h1>Login</h1></header><section className="form-panel"><form onSubmit={submit}><div className="form-group"><label>Email or admin username</label><input type="text" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required /></div><div className="form-group"><label>Password</label><input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></div><button className="btn btn--primary btn--block">Sign in</button>{err ? <p className="form-hint">{err}</p> : null}</form><p className="form-hint">Admin account: email <strong>admin</strong>, password <strong>finalyear</strong>.</p><div className="auth-alt"><p className="auth-alt__label">New to E-Pharmacy?</p><Link to="/register" state={{ fromLogin: true }} className="btn btn--outline btn--block">Sign up</Link></div></section></div>
 }
 
 function Register() {
   const { register } = useAuth()
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'customer' })
   const [file, setFile] = useState(null)
+  const [licenseFile, setLicenseFile] = useState(null)
   const [err, setErr] = useState('')
   const nav = useNavigate()
   const submit = async (e) => {
     e.preventDefault()
-    const r = await register({ ...form, profileFile: file })
+    if (form.role === 'pharmacy') {
+      if (!licenseFile) return setErr('Please upload a clear photo of your pharmacy licence.')
+      if (!isStrongPassword(form.password)) return setErr(strongPasswordHint)
+    }
+    const r = await register({ ...form, profileFile: file, licenseFile: form.role === 'pharmacy' ? licenseFile : null })
     if (!r.ok) return setErr(r.message)
+    if (r.user.role === 'pharmacy' && r.user.pharmacyApprovalStatus === 'pending') return nav('/pharmacy-pending')
     nav(r.user.role === 'pharmacy' ? '/pharmacy-dashboard' : '/')
   }
-  return <div className="page-inner page-inner--narrow"><header className="page-header"><h1>Create account</h1></header><section className="form-panel"><form onSubmit={submit}><div className="form-group"><label>Full name</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></div><div className="form-group"><label>Email</label><input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required /></div><div className="form-group"><label>Password</label><input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required /></div><div className="form-group"><label>Register as</label><select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}><option value="customer">customer</option><option value="pharmacy">pharmacy</option></select></div><div className="form-group"><label>Profile picture</label><input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} /></div><button className="btn btn--primary btn--block">Create account</button>{err ? <p className="form-hint">{err}</p> : null}</form></section></div>
+  return (
+    <div className="page-inner page-inner--narrow">
+      <header className="page-header"><h1>Create account</h1></header>
+      <section className="form-panel">
+        <form onSubmit={submit}>
+          <div className="form-group"><label>Full name</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></div>
+          <div className="form-group"><label>Email</label><input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required /></div>
+          <div className="form-group">
+            <label>Password</label>
+            <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
+            {form.role === 'pharmacy' ? <p className="form-hint">{strongPasswordHint}</p> : null}
+          </div>
+          <div className="form-group"><label>Register as</label><select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}><option value="customer">customer</option><option value="pharmacy">pharmacy</option></select></div>
+          {form.role === 'pharmacy' ? (
+            <div className="form-group"><label>Pharmacy licence (photo)</label><input type="file" accept="image/*" required={form.role === 'pharmacy'} onChange={(e) => setLicenseFile(e.target.files?.[0] || null)} /><p className="form-hint">Upload a readable image of your licence. An admin will review it before your pharmacy can go live.</p></div>
+          ) : null}
+          <div className="form-group"><label>Profile picture</label><input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} /></div>
+          <button className="btn btn--primary btn--block">Create account</button>
+          {err ? <p className="form-hint">{err}</p> : null}
+        </form>
+      </section>
+    </div>
+  )
 }
 
 function Profile() {
@@ -257,6 +317,105 @@ function PharmacyOrders({ orders, onApprove, onReject }) {
   )
 }
 
+function PharmacyPendingPage() {
+  const { currentUser, refreshProfile, logout } = useAuth()
+  const nav = useNavigate()
+  const [busy, setBusy] = useState(false)
+  const status = currentUser?.pharmacyApprovalStatus || 'pending'
+  useEffect(() => {
+    if (currentUser?.role === 'pharmacy' && currentUser.pharmacyApprovalStatus === 'approved') {
+      nav('/pharmacy-dashboard', { replace: true })
+    }
+  }, [currentUser, nav])
+  const refresh = async () => {
+    setBusy(true)
+    await refreshProfile()
+    setBusy(false)
+  }
+  return (
+    <div className="page-inner page-inner--narrow">
+      <header className="page-header"><h1>Pharmacy account status</h1></header>
+      <section className="form-panel">
+        {status === 'pending' ? (
+          <>
+            <p>Thank you for registering. Your licence is being reviewed by an administrator. You can manage inventory and orders only after approval.</p>
+            <p className="form-hint">Signed in as {currentUser?.email}. Use refresh to check for updates.</p>
+            <button type="button" className="btn btn--primary" disabled={busy} onClick={refresh}>{busy ? 'Checking…' : 'Refresh status'}</button>
+          </>
+        ) : (
+          <p>Your pharmacy registration was not approved. If you think this is a mistake, contact support with your licence details.</p>
+        )}
+        <button type="button" className="btn btn--outline" style={{ marginTop: '1rem' }} onClick={() => { logout(); nav('/login') }}>Logout</button>
+      </section>
+    </div>
+  )
+}
+
+function AdminPage() {
+  const { token, logout } = useAuth()
+  const nav = useNavigate()
+  const [list, setList] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [busyId, setBusyId] = useState('')
+  const load = async () => {
+    if (!token) return
+    setLoading(true)
+    setError('')
+    try {
+      const d = await adminApi.listPendingPharmacies(token)
+      setList(d.pharmacies || [])
+    } catch (e) {
+      setError(e.message || 'Could not load pending pharmacies.')
+      setList([])
+    } finally {
+      setLoading(false)
+    }
+  }
+  useEffect(() => { load() }, [token])
+  const run = async (fn, id) => {
+    setBusyId(id)
+    try {
+      await fn(id, token)
+      await load()
+    } catch (e) {
+      setError(e.message || 'Action failed.')
+    } finally {
+      setBusyId('')
+    }
+  }
+  return (
+    <div className="page-inner">
+      <header className="page-header"><h1>Admin · Pharmacy approvals</h1><p className="form-hint">Review licence uploads and approve or reject new pharmacies.</p></header>
+      <section className="form-panel">
+        <div className="table-actions" style={{ marginBottom: '1rem' }}>
+          <button type="button" className="btn btn--outline btn--sm" disabled={loading} onClick={load}>Reload list</button>
+          <button type="button" className="btn btn--danger btn--sm" onClick={() => { logout(); nav('/login') }}>Logout</button>
+        </div>
+        {loading ? <p className="form-hint">Loading…</p> : null}
+        {error ? <p className="form-hint">{error}</p> : null}
+        {!loading && !list.length ? <p className="form-hint">No pharmacies waiting for approval.</p> : null}
+        <div className="card-grid card-grid--medicines">
+          {list.map((p) => (
+            <article className="form-panel pharmacy-order-card" key={p.id}>
+              <h2>{p.name}</h2>
+              <p className="form-hint">{p.email}</p>
+              {p.licenseImage ? (
+                <a href={p.licenseImage} target="_blank" rel="noreferrer" className="form-hint">Open licence image</a>
+              ) : null}
+              {p.licenseImage ? <div style={{ marginTop: '0.75rem' }}><img src={p.licenseImage} alt="Licence" style={{ maxWidth: '100%', borderRadius: 8 }} /></div> : null}
+              <div className="table-actions" style={{ marginTop: '1rem' }}>
+                <button type="button" className="btn btn--primary btn--sm" disabled={busyId === p.id} onClick={() => run(adminApi.approvePharmacy, p.id)}>Approve</button>
+                <button type="button" className="btn btn--danger btn--sm btn--danger-solid" disabled={busyId === p.id} onClick={() => run(adminApi.rejectPharmacy, p.id)}>Reject</button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    </div>
+  )
+}
+
 export default function App() {
   const { token, currentUser } = useAuth()
   const { notify } = useCart()
@@ -290,12 +449,35 @@ export default function App() {
       setPublicLoading(false)
     }
   }
-  const loadInventory = async () => { if (!token || currentUser?.role !== 'pharmacy') return setInventory([]); try { const d = await medicineApi.listMine(token); setInventory(d.medicines || []) } catch { setInventory([]) } }
-  const loadOrders = async () => { if (!token || currentUser?.role !== 'pharmacy') return setOrders([]); try { const d = await orderApi.listPharmacy(token); setOrders(d.orders || []) } catch { setOrders([]) } }
+  const loadInventory = async () => {
+    if (!token || currentUser?.role !== 'pharmacy') return setInventory([])
+    if (currentUser?.pharmacyApprovalStatus && currentUser.pharmacyApprovalStatus !== 'approved') return setInventory([])
+    try {
+      const d = await medicineApi.listMine(token)
+      setInventory(d.medicines || [])
+    } catch {
+      setInventory([])
+    }
+  }
+  const loadOrders = async () => {
+    if (!token || currentUser?.role !== 'pharmacy') return setOrders([])
+    if (currentUser?.pharmacyApprovalStatus && currentUser.pharmacyApprovalStatus !== 'approved') return setOrders([])
+    try {
+      const d = await orderApi.listPharmacy(token)
+      setOrders(d.orders || [])
+    } catch {
+      setOrders([])
+    }
+  }
 
   useEffect(() => { loadPublic() }, [])
-  useEffect(() => { loadInventory(); loadOrders() }, [token, currentUser?.role])
-  useEffect(() => { if (!token || currentUser?.role !== 'pharmacy') return; const i = setInterval(loadOrders, 5000); return () => clearInterval(i) }, [token, currentUser?.role])
+  useEffect(() => { loadInventory(); loadOrders() }, [token, currentUser?.role, currentUser?.pharmacyApprovalStatus])
+  useEffect(() => {
+    if (!token || currentUser?.role !== 'pharmacy') return undefined
+    if (currentUser?.pharmacyApprovalStatus && currentUser.pharmacyApprovalStatus !== 'approved') return undefined
+    const i = setInterval(loadOrders, 5000)
+    return () => clearInterval(i)
+  }, [token, currentUser?.role, currentUser?.pharmacyApprovalStatus])
 
   const addMed = async (p) => { await medicineApi.create(p, token); await Promise.all([loadPublic(), loadInventory()]) }
   const updMed = async (id, f, v) => { await medicineApi.update(id, { [f]: v }, token); await Promise.all([loadPublic(), loadInventory()]) }
@@ -328,6 +510,8 @@ export default function App() {
       <Route path="/profile" element={<CustomerRoute><PublicLayout><Profile /></PublicLayout></CustomerRoute>} />
       <Route path="/login" element={<PublicLayout><Login /></PublicLayout>} />
       <Route path="/register" element={<PublicLayout><Register /></PublicLayout>} />
+      <Route path="/pharmacy-pending" element={<PharmacyPendingRoute><PublicLayout><PharmacyPendingPage /></PublicLayout></PharmacyPendingRoute>} />
+      <Route path="/admin" element={<AdminRoute><PublicLayout><AdminPage /></PublicLayout></AdminRoute>} />
 
       <Route path="/pharmacy-dashboard" element={<PharmacyRoute><PharmacyLayout activeOrdersCount={activeOrdersCount} /></PharmacyRoute>}><Route index element={<DashboardHome inventory={inventory} orders={orders} />} /></Route>
       <Route path="/pharmacy-orders" element={<PharmacyRoute><PharmacyLayout activeOrdersCount={activeOrdersCount} /></PharmacyRoute>}><Route index element={<PharmacyOrders orders={orders} onApprove={approve} onReject={reject} />} /></Route>

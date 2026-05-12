@@ -67,3 +67,9 @@ export const orderApi = {
     }
   },
 }
+
+export const adminApi = {
+  listPendingPharmacies: (token) => apiFetch('/admin/pharmacies/pending', { token }),
+  approvePharmacy: (id, token) => apiFetch(`/admin/pharmacies/${id}/approve`, { method: 'PUT', token }),
+  rejectPharmacy: (id, token) => apiFetch(`/admin/pharmacies/${id}/reject`, { method: 'PUT', token }),
+}

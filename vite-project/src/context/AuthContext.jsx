@@ -30,7 +30,7 @@ export function AuthProvider({ children }) {
     }
   }
 
-  const register = async ({ name, email, password, role, profileFile }) => {
+  const register = async ({ name, email, password, role, profileFile, licenseFile }) => {
     try {
       const formData = new FormData()
       formData.append('name', name)
@@ -38,6 +38,7 @@ export function AuthProvider({ children }) {
       formData.append('password', password)
       formData.append('role', role)
       if (profileFile) formData.append('profileImage', profileFile)
+      if (licenseFile) formData.append('licenseImage', licenseFile)
       const data = await authApi.register(formData)
       persist({ user: data.user, token: data.token })
       return { ok: true, user: data.user }

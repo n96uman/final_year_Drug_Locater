@@ -3,7 +3,9 @@ const express = require('express')
 const cors = require('cors')
 const path = require('path')
 const multer = require('multer')
+const bcrypt = require('bcryptjs')
 const connectDB = require('./config/db')
+const User = require('./models/User')
 
 const app = express()
 
@@ -20,15 +22,33 @@ const ensureDb = () => {
 app.use(async (_req, _res, next) => {
   try {
     await ensureDb()
+    await seedAdminUser()
     next()
   } catch (e) {
     next(e)
   }
 })
 
+let adminSeedChecked = false
+async function seedAdminUser() {
+  if (adminSeedChecked) return
+  adminSeedChecked = true
+  const has = await User.findOne({ role: 'admin' })
+  if (has) return
+  await User.create({
+    name: 'Administrator',
+    email: 'admin',
+    password: await bcrypt.hash('finalyear', 10),
+    role: 'admin',
+    pharmacyApprovalStatus: 'approved',
+    profileImage: 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
+  })
+}
+
 app.use('/api/auth', require('./routes/authRoutes'))
 app.use('/api/medicines', require('./routes/medicineRoutes'))
 app.use('/api/orders', require('./routes/orderRoutes'))
+app.use('/api/admin', require('./routes/adminRoutes'))
 app.get('/api/health', (_req,res)=>res.json({status:'ok'}))
 app.use((err,_req,res,_next)=>{ if(err instanceof multer.MulterError) return res.status(400).json({message:err.message}); return res.status(400).json({message:err.message||'Error'}) })
 

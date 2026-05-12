@@ -1,0 +1,9 @@
+const express = require('express')
+const { protect, allowRoles } = require('../middleware/authMiddleware')
+const c = require('../controllers/adminController')
+const r = express.Router()
+r.use(protect, allowRoles('admin'))
+r.get('/pharmacies/pending', c.listPendingPharmacies)
+r.put('/pharmacies/:id/approve', c.approvePharmacy)
+r.put('/pharmacies/:id/reject', c.rejectPharmacy)
+module.exports = r
