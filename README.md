@@ -79,8 +79,8 @@ VITE_API_BASE_URL=http://127.0.0.1:5000/api
 
 The repo root is the Vercel project (do **not** set the Vercel “Root Directory” to `vite-project` only).
 
-- **`vercel.json`**: builds the Vite app into root `dist/`, serves that as the static site, and **rewrites** `/api/*` and `/uploads/*` to **`api/server.js`** (Express).
-- **`api/server.js`**: exports the same Express app as `backend/src/server.js`.
+- **`vercel.json`**: uses **`builds`** so Vercel deploys both (1) the **`api/server.js`** Node serverless entry (Express) and (2) the static site from root **`dist/`** (Vite output copied there by the root `build` script). **Routes** send `/api/*` and `/uploads/*` to that function; `/assets/*` and SPA paths go to static files / `index.html`.
+- **`api/server.js`**: `module.exports = require('../backend/src/server.js')`.
 
 ### 1) Import project to Vercel
 
