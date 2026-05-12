@@ -19,12 +19,15 @@
       "dest": "backend/src/server.js"
     },
     {
-      "src": "/(.*\\..*)",
-      "dest": "vite-project/$1"
+      "src": "/uploads/(.*)",
+      "dest": "backend/src/server.js"
+    },
+    {
+      "handle": "filesystem"
     },
     {
       "src": "/(.*)",
-      "dest": "vite-project/index.html"
+      "dest": "vite-project/dist/index.html"
     }
   ]
 }

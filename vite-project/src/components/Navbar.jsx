@@ -1,9 +1,19 @@
 ﻿import { useEffect, useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
+function navSubtitle(user) {
+  if (!user) return 'Medicine search · Hawassa'
+  if (user.role === 'customer') return 'Customer account'
+  if (user.role === 'admin') return 'Administrator'
+  if (user.role === 'pharmacy' && user.pharmacyApprovalStatus === 'pending') return 'Pharmacy · Awaiting approval'
+  if (user.role === 'pharmacy') return 'Pharmacy account'
+  return 'E-Pharmacy'
+}
+
 export default function Navbar() {
-  const { currentUser } = useAuth()
+  const { currentUser, logout } = useAuth()
+  const nav = useNavigate()
   const [theme, setTheme] = useState('light')
 
   useEffect(() => {
@@ -27,7 +37,7 @@ export default function Navbar() {
         <p className="site-title">
           <NavLink to="/">
             E-Pharmacy
-            <span>Hawassa City · Customer</span>
+            <span>{navSubtitle(currentUser)}</span>
           </NavLink>
         </p>
         <input type="checkbox" id="nav-menu" className="nav-menu-checkbox" hidden />
@@ -42,8 +52,26 @@ export default function Navbar() {
             {currentUser?.role === 'customer' ? <li><NavLink to="/profile">Profile</NavLink></li> : null}
             {currentUser?.role === 'pharmacy' && currentUser?.pharmacyApprovalStatus !== 'approved' ? <li><NavLink to="/pharmacy-pending">Account status</NavLink></li> : null}
             {currentUser?.role === 'pharmacy' && currentUser?.pharmacyApprovalStatus === 'approved' ? <li><NavLink to="/pharmacy-dashboard">Dashboard</NavLink></li> : null}
-            {currentUser?.role === 'admin' ? <li><NavLink to="/admin">Admin</NavLink></li> : null}
-            {!currentUser ? <li><NavLink to="/login">Login</NavLink></li> : null}
+            {currentUser?.role === 'admin' ? <li><NavLink to="/admin">Admin approvals</NavLink></li> : null}
+            {!currentUser ? (
+              <>
+                <li><NavLink to="/login">Login</NavLink></li>
+                <li><NavLink to="/register">Register</NavLink></li>
+              </>
+            ) : (
+              <li>
+                <button
+                  type="button"
+                  className="nav-link-btn"
+                  onClick={() => {
+                    logout()
+                    nav('/login', { replace: true })
+                  }}
+                >
+                  Sign out
+                </button>
+              </li>
+            )}
             <li>
               <button
                 type="button"
