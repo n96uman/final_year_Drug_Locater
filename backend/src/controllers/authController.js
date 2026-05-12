@@ -92,6 +92,17 @@ exports.login = async (req, res) => {
   res.json({ token, user: safe(user, req) })
 }
 
+exports.abandonPendingPharmacyAccount = async (req, res) => {
+  const u = req.user
+  if (u.role !== 'pharmacy' || u.pharmacyApprovalStatus !== 'pending') {
+    return res.status(400).json({ message: 'No pending pharmacy registration to withdraw.' })
+  }
+  tryUnlinkUpload(u.licenseImage)
+  tryUnlinkUpload(u.profileImage)
+  await User.deleteOne({ _id: u._id })
+  res.json({ message: 'Registration withdrawn.' })
+}
+
 exports.me = async (req, res) => res.json({ user: safe(req.user, req) })
 exports.updateProfile = async (req, res) => {
   if (req.body.name != null) req.user.name = req.body.name

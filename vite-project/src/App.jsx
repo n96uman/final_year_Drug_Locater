@@ -292,7 +292,7 @@ function Profile() {
         {edit ? <button className="btn btn--primary" disabled={saving}>{saving ? 'Saving...' : 'Save profile'}</button> : null}
       </form>
       <p className="form-hint">{msg}</p>
-      <button className="btn btn--danger" onClick={() => { logout(); nav('/login') }}>Logout</button>
+      <button className="btn btn--danger" onClick={async () => { await logout(); nav('/login') }}>Logout</button>
     </section>
   )
 }
@@ -377,7 +377,7 @@ function PharmacyPendingPage() {
         ) : (
           <p>Registration was not approved.</p>
         )}
-        <button type="button" className="btn btn--outline" style={{ marginTop: '1rem' }} onClick={() => { logout(); nav('/login') }}>Sign out</button>
+        <button type="button" className="btn btn--outline" style={{ marginTop: '1rem' }} onClick={async () => { await logout(); nav('/login') }}>Sign out</button>
       </section>
     </div>
   )
@@ -458,7 +458,7 @@ function AdminPage() {
         <div className="table-actions admin-toolbar">
           <button type="button" className="btn btn--outline btn--sm" disabled={loading} onClick={load}>Reload list</button>
           <Link to="/" className="btn btn--outline btn--sm">Public site</Link>
-          <button type="button" className="btn btn--danger btn--sm" onClick={() => { logout(); nav('/login') }}>Sign out</button>
+          <button type="button" className="btn btn--danger btn--sm" onClick={async () => { await logout(); nav('/login') }}>Sign out</button>
         </div>
         {loading ? <p className="form-hint">Loading…</p> : null}
         {error ? <p className="form-hint">{error}</p> : null}

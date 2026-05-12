@@ -59,18 +59,22 @@ export default function Navbar() {
                 <li><NavLink to="/register">Register</NavLink></li>
               </>
             ) : (
+              currentUser &&
+              (currentUser.role === 'customer' ||
+                (currentUser.role === 'pharmacy' && currentUser.pharmacyApprovalStatus === 'approved')) ? (
               <li>
                 <button
                   type="button"
                   className="nav-link-btn"
-                  onClick={() => {
-                    logout()
+                  onClick={async () => {
+                    await logout()
                     nav('/login', { replace: true })
                   }}
                 >
                   Sign out
                 </button>
               </li>
+              ) : null
             )}
             <li>
               <button

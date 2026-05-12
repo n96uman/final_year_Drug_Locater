@@ -1,10 +1,11 @@
 ﻿const express = require('express')
-const { register, login, me, updateProfile } = require('../controllers/authController')
+const { register, login, me, updateProfile, abandonPendingPharmacyAccount } = require('../controllers/authController')
 const { protect } = require('../middleware/authMiddleware')
 const { uploadProfileImage, uploadRegisterFiles } = require('../middleware/uploadMiddleware')
 const r = express.Router()
 r.post('/register', uploadRegisterFiles, register)
 r.post('/login', login)
+r.delete('/pending-pharmacy-account', protect, abandonPendingPharmacyAccount)
 r.get('/me', protect, me)
 r.put('/profile', protect, uploadProfileImage.single('profileImage'), updateProfile)
 module.exports = r

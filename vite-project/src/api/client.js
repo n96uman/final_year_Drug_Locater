@@ -44,6 +44,7 @@ export const authApi = {
   login: (payload) => apiFetch('/auth/login', { method: 'POST', body: payload }),
   me: (token) => apiFetch('/auth/me', { token }),
   updateProfile: (formData, token) => apiFetchMultipart('/auth/profile', { method: 'PUT', formData, token }),
+  abandonPendingPharmacy: (token) => apiFetch('/auth/pending-pharmacy-account', { method: 'DELETE', token }),
 }
 
 export const medicineApi = {

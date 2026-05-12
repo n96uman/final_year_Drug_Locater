@@ -1,4 +1,4 @@
-﻿import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+﻿import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { authApi } from '../api/client'
 
 const AuthContext = createContext(null)
@@ -61,10 +61,19 @@ export function AuthProvider({ children }) {
     }
   }
 
-  const logout = () => {
+  const logout = useCallback(async () => {
+    const tok = session?.token
+    const user = session?.user
+    if (tok && user?.role === 'pharmacy' && user?.pharmacyApprovalStatus === 'pending') {
+      try {
+        await authApi.abandonPendingPharmacy(tok)
+      } catch {
+        /* still clear local session */
+      }
+    }
     setSession(null)
     localStorage.removeItem('dl_session')
-  }
+  }, [session])
 
   const refreshProfile = async () => {
     if (!session?.token) return { ok: false, message: 'No active session' }
@@ -112,7 +121,7 @@ export function AuthProvider({ children }) {
     refreshProfile,
     updateProfile,
     logout,
-  }), [session, authLoading])
+  }), [session, authLoading, logout])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
