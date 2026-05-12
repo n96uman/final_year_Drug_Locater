@@ -73,3 +73,24 @@ export const adminApi = {
   approvePharmacy: (id, token) => apiFetch(`/admin/pharmacies/${id}/approve`, { method: 'PUT', token }),
   rejectPharmacy: (id, token) => apiFetch(`/admin/pharmacies/${id}/reject`, { method: 'PUT', token }),
 }
+
+/** Fetches licence bytes with admin JWT; caller must revoke the object URL when done. */
+export async function fetchAdminLicenseObjectUrl(userId, token) {
+  const response = await fetch(`${API_BASE_URL}/admin/pharmacies/${userId}/license-image`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!response.ok) {
+    const text = await response.text()
+    let message = text
+    try {
+      const j = JSON.parse(text)
+      if (j && j.message) message = j.message
+    } catch {
+      /* use text */
+    }
+    throw new Error(message || `Request failed (${response.status})`)
+  }
+  const blob = await response.blob()
+  const objectUrl = URL.createObjectURL(blob)
+  return { objectUrl, revoke: () => URL.revokeObjectURL(objectUrl) }
+}

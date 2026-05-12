@@ -1,4 +1,6 @@
-﻿const bcrypt = require('bcryptjs')
+﻿const fs = require('fs')
+const path = require('path')
+const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const User = require('../models/User')
 const { jwtSecret } = require('../config/auth')
@@ -7,6 +9,23 @@ const { filePublicUrl } = require('../utils/publicFileUrl')
 const { sanitizeUploadPath } = require('../utils/sanitizeUploadPath')
 
 const img = (req, p) => filePublicUrl(req, sanitizeUploadPath(p))
+
+const UPLOAD_ROOT = process.env.VERCEL ? path.join('/tmp', 'uploads') : path.join(process.cwd(), 'uploads')
+
+function tryUnlinkUpload(rel) {
+  if (!rel || typeof rel !== 'string' || !rel.startsWith('/uploads/')) return
+  const clean = sanitizeUploadPath(rel)
+  if (!clean || !clean.startsWith('/uploads/')) return
+  const basename = path.basename(clean)
+  if (!/^(license|profile)-\d+\.(jpe?g|png|gif|webp|jfif)$/i.test(basename)) return
+  const abs = path.resolve(UPLOAD_ROOT, basename)
+  if (!abs.startsWith(path.resolve(UPLOAD_ROOT))) return
+  try {
+    fs.unlinkSync(abs)
+  } catch {
+    /* ignore */
+  }
+}
 const safe = (u, req) => ({
   id: u._id,
   name: u.name,
@@ -35,7 +54,18 @@ exports.register = async (req, res) => {
     if (!licenseFile) return res.status(400).json({ message: 'Pharmacy license image is required' })
   }
 
-  if (await User.findOne({ email: em })) return res.status(409).json({ message: 'Email already exists' })
+  const existing = await User.findOne({ email: em })
+  if (existing) {
+    const isRejectedPharmacy =
+      existing.role === 'pharmacy' && existing.pharmacyApprovalStatus === 'rejected'
+    if (isRejectedPharmacy) {
+      tryUnlinkUpload(existing.licenseImage)
+      tryUnlinkUpload(existing.profileImage)
+      await User.deleteOne({ _id: existing._id })
+    } else {
+      return res.status(409).json({ message: 'Email already exists' })
+    }
+  }
 
   const profilePath = profileFile ? sanitizeUploadPath(`/uploads/${profileFile.filename}`) : 'https://cdn-icons-png.flaticon.com/512/149/149071.png'
   const licensePath = licenseFile ? sanitizeUploadPath(`/uploads/${licenseFile.filename}`) : undefined

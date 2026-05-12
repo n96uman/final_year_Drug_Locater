@@ -9,9 +9,8 @@ import PharmacyCard from './components/PharmacyCard'
 import CartItem from './components/CartItem'
 import { useAuth } from './context/AuthContext'
 import { useCart } from './context/CartContext'
-import { medicineApi, orderApi, adminApi } from './api/client'
+import { medicineApi, orderApi, adminApi, fetchAdminLicenseObjectUrl } from './api/client'
 import { isStrongPassword, strongPasswordHint } from './utils/passwordPolicy'
-import { resolveUploadAssetUrl } from './utils/uploadAssetUrl'
 import doctorHero from './assets/doctor.jfif'
 
 function PublicLayout({ children }) {
@@ -384,6 +383,41 @@ function PharmacyPendingPage() {
   )
 }
 
+function AdminPharmacyLicenseImg({ userId, token }) {
+  const [src, setSrc] = useState(null)
+  const [err, setErr] = useState('')
+  useEffect(() => {
+    let cancelled = false
+    let revoke = null
+    setSrc(null)
+    setErr('')
+    ;(async () => {
+      try {
+        const { objectUrl, revoke: r } = await fetchAdminLicenseObjectUrl(userId, token)
+        if (cancelled) {
+          r()
+          return
+        }
+        revoke = r
+        setSrc(objectUrl)
+      } catch (e) {
+        if (!cancelled) setErr(e.message || 'Could not load licence')
+      }
+    })()
+    return () => {
+      cancelled = true
+      if (revoke) revoke()
+    }
+  }, [userId, token])
+  if (err) return <p className="form-hint">{err}</p>
+  if (!src) return <p className="form-hint">Loading licence…</p>
+  return (
+    <a href={src} target="_blank" rel="noreferrer" className="admin-licence-thumb">
+      <img src={src} alt="Licence" style={{ maxWidth: '100%', borderRadius: 8 }} />
+    </a>
+  )
+}
+
 function AdminPage() {
   const { token, logout } = useAuth()
   const nav = useNavigate()
@@ -430,24 +464,17 @@ function AdminPage() {
         {error ? <p className="form-hint">{error}</p> : null}
         {!loading && !list.length ? <p className="form-hint admin-empty-msg">No pending pharmacies.</p> : null}
         <div className="card-grid card-grid--medicines">
-          {list.map((p) => {
-            const licenceSrc = resolveUploadAssetUrl(p.licenseImage)
-            return (
+          {list.map((p) => (
             <article className="form-panel pharmacy-order-card" key={p.id}>
               <h2>{p.name}</h2>
               <p className="form-hint">{p.email}</p>
-              {licenceSrc ? (
-                <a href={licenceSrc} target="_blank" rel="noreferrer" className="admin-licence-thumb">
-                  <img src={licenceSrc} alt="Licence" style={{ maxWidth: '100%', borderRadius: 8 }} />
-                </a>
-              ) : null}
+              <AdminPharmacyLicenseImg userId={p.id} token={token} />
               <div className="table-actions" style={{ marginTop: '1rem' }}>
                 <button type="button" className="btn btn--primary btn--sm" disabled={busyId === p.id} onClick={() => run(adminApi.approvePharmacy, p.id)}>Approve</button>
                 <button type="button" className="btn btn--danger btn--sm btn--danger-solid" disabled={busyId === p.id} onClick={() => run(adminApi.rejectPharmacy, p.id)}>Reject</button>
               </div>
             </article>
-            )
-          })}
+          ))}
         </div>
       </section>
     </div>
