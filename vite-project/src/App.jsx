@@ -11,6 +11,7 @@ import { useAuth } from './context/AuthContext'
 import { useCart } from './context/CartContext'
 import { medicineApi, orderApi, adminApi } from './api/client'
 import { isStrongPassword, strongPasswordHint } from './utils/passwordPolicy'
+import doctorHero from './assets/doctor.jfif'
 
 function PublicLayout({ children }) {
   return (
@@ -78,7 +79,10 @@ function Home({ medicines, loading, error }) {
           <p className="lead">Find medicines quickly, compare prices, and send checkout requests for pharmacy approval.</p>
           <Link className="btn btn--primary" to="/search">Search medicines</Link>
         </div>
-        <aside className="hero__visual" aria-hidden="true"><div className="hero__visual-inner"><strong>Smart search</strong><span>Compare prices · Build your cart</span></div></aside>
+        <aside className="hero__visual hero__visual--photo" aria-label="Healthcare illustration">
+          <img className="hero__visual-img" src={doctorHero} alt="Healthcare professional" width={640} height={480} decoding="async" />
+          <p className="hero__visual-caption">Smart search · Compare prices · Build your cart</p>
+        </aside>
       </section>
       <section aria-labelledby="featured-heading">
         <h2 id="featured-heading" className="section-title">Featured medicines</h2>
@@ -184,10 +188,8 @@ function Register() {
   const nav = useNavigate()
   const submit = async (e) => {
     e.preventDefault()
-    if (form.role === 'pharmacy') {
-      if (!licenseFile) return setErr('Please upload a clear photo of your pharmacy licence.')
-      if (!isStrongPassword(form.password)) return setErr(strongPasswordHint)
-    }
+    if (!isStrongPassword(form.password)) return setErr(strongPasswordHint)
+    if (form.role === 'pharmacy' && !licenseFile) return setErr('Please upload a clear photo of your pharmacy licence.')
     const r = await register({ ...form, profileFile: file, licenseFile: form.role === 'pharmacy' ? licenseFile : null })
     if (!r.ok) return setErr(r.message)
     if (r.user.role === 'pharmacy' && r.user.pharmacyApprovalStatus === 'pending') return nav('/pharmacy-pending')
@@ -203,7 +205,7 @@ function Register() {
           <div className="form-group">
             <label>Password</label>
             <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
-            {form.role === 'pharmacy' ? <p className="form-hint">{strongPasswordHint}</p> : null}
+            <p className="form-hint form-hint--field">{strongPasswordHint}</p>
           </div>
           <div className="form-group"><label>Register as</label><select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}><option value="customer">customer</option><option value="pharmacy">pharmacy</option></select></div>
           {form.role === 'pharmacy' ? (

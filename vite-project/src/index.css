@@ -37,6 +37,41 @@
   --shadow-hover: 0 16px 36px rgba(51, 212, 194, 0.2);
 }
 
+/* Dark mode: light text inside inputs, selects, and textareas (autofill-safe) */
+[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="image"]):not([type="button"]):not([type="submit"]):not([type="reset"]),
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  color: #f0f4fc;
+  background-color: var(--color-surface);
+  caret-color: #f0f4fc;
+}
+
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: #9fb1cf;
+  opacity: 1;
+}
+
+[data-theme="dark"] input:disabled,
+[data-theme="dark"] select:disabled,
+[data-theme="dark"] textarea:disabled {
+  color: #c5d0e8;
+  opacity: 0.9;
+}
+
+[data-theme="dark"] input:-webkit-autofill,
+[data-theme="dark"] input:-webkit-autofill:hover,
+[data-theme="dark"] input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #f0f4fc;
+  box-shadow: 0 0 0 1000px var(--color-surface) inset;
+  transition: background-color 9999s ease-out;
+}
+
+[data-theme="dark"] select option {
+  background-color: var(--color-surface);
+  color: #f0f4fc;
+}
+
 *,
 *::before,
 *::after {
@@ -564,6 +599,37 @@ main {
 .hero__visual:hover {
   box-shadow: var(--shadow-hover);
   transform: translateY(-2px);
+}
+
+.hero__visual--photo {
+  padding: 0;
+  overflow: hidden;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+.hero__visual-img {
+  width: 100%;
+  height: clamp(200px, 32vw, 320px);
+  object-fit: cover;
+  object-position: center 20%;
+  display: block;
+}
+
+.hero__visual-caption {
+  margin: 0;
+  padding: 0.75rem 1rem 1rem;
+  font-size: 0.875rem;
+  text-align: center;
+  color: var(--color-text-muted);
+  background: rgba(255, 255, 255, 0.72);
+  border-top: 1px solid var(--color-border);
+}
+
+[data-theme="dark"] .hero__visual-caption {
+  background: rgba(17, 26, 43, 0.92);
+  color: var(--color-text-muted);
 }
 
 .hero__visual-inner {

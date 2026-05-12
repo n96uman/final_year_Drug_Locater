@@ -27,8 +27,9 @@ exports.register = async (req, res) => {
   const em = String(email).toLowerCase().trim()
   if (em === 'admin') return res.status(400).json({ message: 'This email is reserved' })
 
+  if (!isStrongPassword(password)) return res.status(400).json({ message: strongPasswordMessage })
+
   if (role === 'pharmacy') {
-    if (!isStrongPassword(password)) return res.status(400).json({ message: strongPasswordMessage })
     if (!licenseFile) return res.status(400).json({ message: 'Pharmacy license image is required' })
   }
 
