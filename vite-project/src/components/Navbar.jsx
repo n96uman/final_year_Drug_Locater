@@ -52,7 +52,7 @@ export default function Navbar() {
             {currentUser?.role === 'customer' ? <li><NavLink to="/profile">Profile</NavLink></li> : null}
             {currentUser?.role === 'pharmacy' && currentUser?.pharmacyApprovalStatus !== 'approved' ? <li><NavLink to="/pharmacy-pending">Account status</NavLink></li> : null}
             {currentUser?.role === 'pharmacy' && currentUser?.pharmacyApprovalStatus === 'approved' ? <li><NavLink to="/pharmacy-dashboard">Dashboard</NavLink></li> : null}
-            {currentUser?.role === 'admin' ? <li><NavLink to="/admin">Admin approvals</NavLink></li> : null}
+            {currentUser?.role === 'admin' ? <li><NavLink to="/admin">Admin</NavLink></li> : null}
             {!currentUser ? (
               <>
                 <li><NavLink to="/login">Login</NavLink></li>

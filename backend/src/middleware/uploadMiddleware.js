@@ -4,12 +4,18 @@ const multer = require('multer')
 const dir = process.env.VERCEL ? path.join('/tmp', 'uploads') : path.join(process.cwd(), 'uploads')
 if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
 
+const ALLOWED_EXT = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp', '.jfif'])
+
+function safeImageFilename(fieldname, originalname) {
+  const prefix = fieldname === 'licenseImage' ? 'license' : 'profile'
+  let ext = path.extname(originalname || '').toLowerCase()
+  if (!ALLOWED_EXT.has(ext)) ext = '.jpg'
+  return `${prefix}-${Date.now()}${ext}`
+}
+
 const storage = multer.diskStorage({
   destination: (_r, _f, cb) => cb(null, dir),
-  filename: (req, f, cb) => {
-    const prefix = f.fieldname === 'licenseImage' ? 'license' : 'profile'
-    cb(null, `${prefix}-${Date.now()}-${f.originalname}`)
-  },
+  filename: (_req, f, cb) => cb(null, safeImageFilename(f.fieldname, f.originalname)),
 })
 const imageMulter = multer({
   storage,
@@ -22,4 +28,3 @@ exports.uploadRegisterFiles = imageMulter.fields([
   { name: 'profileImage', maxCount: 1 },
   { name: 'licenseImage', maxCount: 1 },
 ])
-

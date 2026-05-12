@@ -1768,31 +1768,21 @@ main {
   color: var(--color-text);
 }
 
-.auth-details {
-  margin-top: 1.25rem;
-  padding: 0.75rem 1rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-bg);
-}
-
-.auth-details summary {
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 0.9rem;
-  color: var(--color-text);
-}
-
-.auth-details summary:hover {
-  color: var(--color-primary);
-}
-
 .form-panel--admin-toolbar .admin-toolbar {
   margin-bottom: 1rem;
 }
 
 .admin-empty-msg {
   max-width: 40rem;
+}
+
+.admin-licence-thumb {
+  display: block;
+  margin-top: 0.75rem;
+}
+
+.admin-licence-thumb:hover img {
+  opacity: 0.92;
 }
 
 .cart-qty-input {

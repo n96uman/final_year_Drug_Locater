@@ -85,38 +85,9 @@ function Home({ medicines, loading, error }) {
           <p className="hero__visual-caption">Smart search · Compare prices · Build your cart</p>
         </aside>
       </section>
-      <section className="flow-section" aria-labelledby="flow-heading">
-        <h2 id="flow-heading" className="section-title">How to use this site</h2>
-        <div className="flow-grid">
-          <article className="flow-card">
-            <h3 className="flow-card__title">Customers</h3>
-            <ol className="flow-card__steps">
-              <li><Link to="/register">Create a customer account</Link> (strong password required).</li>
-              <li><Link to="/search">Search medicines</Link> and add items to your cart.</li>
-              <li>Checkout sends the request to the pharmacy for approval.</li>
-            </ol>
-          </article>
-          <article className="flow-card">
-            <h3 className="flow-card__title">Pharmacies</h3>
-            <ol className="flow-card__steps">
-              <li><Link to="/register">Register as pharmacy</Link>, upload your licence photo, and wait for admin approval.</li>
-              <li>After approval, add stock from the pharmacy dashboard.</li>
-              <li>Approve or decline customer orders from the Orders page.</li>
-            </ol>
-          </article>
-          <article className="flow-card">
-            <h3 className="flow-card__title">Administrators</h3>
-            <ol className="flow-card__steps">
-              <li><Link to="/login">Sign in</Link> with the admin email, then open Admin approvals.</li>
-              <li>Review licence images and approve or reject each pharmacy.</li>
-            </ol>
-            <p className="form-hint flow-card__hint">Admin access is only for verifying new pharmacies.</p>
-          </article>
-        </div>
-      </section>
       <section aria-labelledby="featured-heading">
         <h2 id="featured-heading" className="section-title">Featured medicines</h2>
-        {loading ? <p className="form-hint">Loading medicines from database...</p> : null}
+        {loading ? <p className="form-hint">Loading…</p> : null}
         {!loading && error ? <p className="form-hint">{error}</p> : null}
         {!loading && !error && featured.length === 0 ? <p className="form-hint">No medicines found yet.</p> : null}
         {!loading && !error ? <div className="card-grid card-grid--medicines">{featured.map((m) => <MedicineCard key={m._id || m.id} medicine={m} onAddToCart={addToCart} />)}</div> : null}
@@ -134,7 +105,7 @@ function Search({ medicines, loading, error }) {
       <header className="page-header"><h1>Search medicine</h1></header>
       <form className="search-bar search-bar--wide search-form-spacing" onSubmit={(e) => e.preventDefault()}><SearchBar value={q} onChange={setQ} /><button type="submit" className="btn btn--primary">Search</button></form>
       <div className="results-toolbar"><h2 className="section-title">Search results</h2></div>
-      {loading ? <p className="form-hint">Loading medicines from database...</p> : null}
+      {loading ? <p className="form-hint">Loading…</p> : null}
       {!loading && error ? <p className="form-hint">{error}</p> : null}
       {!loading && !error && filtered.length === 0 ? <p className="form-hint">No medicine matches your search.</p> : null}
       {!loading && !error ? <section><div className="card-grid card-grid--medicines">{filtered.map((m) => <MedicineCard key={m._id || m.id} medicine={m} onAddToCart={addToCart} />)}</div></section> : null}
@@ -147,7 +118,7 @@ function Pharmacies({ medicines, loading, error }) {
   return (
     <>
       <header className="page-header"><h1>Pharmacy results</h1></header>
-      {loading ? <p className="form-hint">Loading pharmacies from database...</p> : null}
+      {loading ? <p className="form-hint">Loading…</p> : null}
       {!loading && error ? <p className="form-hint">{error}</p> : null}
       {!loading && !error && medicines.length === 0 ? <p className="form-hint">No pharmacy medicines available right now.</p> : null}
       {!loading && !error ? <section><div className="card-grid card-grid--medicines">{medicines.map((m) => <PharmacyCard key={m._id || m.id} medicine={m} onAddToCart={addToCart} />)}</div></section> : null}
@@ -208,21 +179,14 @@ function Login() {
   }
   return (
     <div className="page-inner page-inner--narrow">
-      <header className="page-header">
-        <h1>Login</h1>
-        <p className="text-muted-block" style={{ marginBottom: '1rem' }}>Customers, pharmacies, and administrators all use this page. You will be taken to the right area after signing in.</p>
-      </header>
+      <header className="page-header"><h1>Login</h1></header>
       <section className="form-panel">
         <form onSubmit={submit}>
-          <div className="form-group"><label htmlFor="login-email">Email or admin ID</label><input id="login-email" type="text" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
+          <div className="form-group"><label htmlFor="login-email">Email</label><input id="login-email" type="text" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
           <div className="form-group"><label htmlFor="login-password">Password</label><input id="login-password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></div>
           <button className="btn btn--primary btn--block" type="submit">Sign in</button>
           {err ? <p className="form-hint" role="alert">{err}</p> : null}
         </form>
-        <details className="auth-details">
-          <summary>Administrator sign-in (pharmacy approvals)</summary>
-          <p className="form-hint" style={{ marginTop: '0.75rem' }}>Use email <strong>admin</strong>. If you use the default database seed from this project, the password is <strong>finalyear</strong> — change it in production. After login, open <strong>Admin approvals</strong> in the menu.</p>
-        </details>
         <div className="auth-alt">
           <p className="auth-alt__label">Need an account?</p>
           <Link to="/register" className="btn btn--outline btn--block">Create account</Link>
@@ -250,10 +214,7 @@ function Register() {
   }
   return (
     <div className="page-inner page-inner--narrow">
-      <header className="page-header">
-        <h1>Create account</h1>
-        <p className="text-muted-block" style={{ marginBottom: '1rem' }}>Choose <strong>customer</strong> to search and order medicines. Choose <strong>pharmacy</strong> to list stock (requires licence upload and admin approval first).</p>
-      </header>
+      <header className="page-header"><h1>Create account</h1></header>
       <section className="form-panel">
         <form onSubmit={submit}>
           <div className="form-group"><label htmlFor="reg-name">Full name</label><input id="reg-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></div>
@@ -266,18 +227,17 @@ function Register() {
           <div className="form-group">
             <label htmlFor="reg-role">Account type</label>
             <select id="reg-role" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-              <option value="customer">Customer — search, cart, checkout</option>
-              <option value="pharmacy">Pharmacy — manage medicines and orders (needs approval)</option>
+              <option value="customer">Customer</option>
+              <option value="pharmacy">Pharmacy</option>
             </select>
           </div>
           {form.role === 'pharmacy' ? (
             <div className="form-group">
               <label htmlFor="reg-licence">Pharmacy licence (photo)</label>
               <input id="reg-licence" type="file" accept="image/*" required={form.role === 'pharmacy'} onChange={(e) => setLicenseFile(e.target.files?.[0] || null)} />
-              <p className="form-hint">Upload a clear photo of your licence. An administrator must approve your account before your medicines appear to the public.</p>
             </div>
           ) : null}
-          <div className="form-group"><label htmlFor="reg-photo">Profile picture</label><input id="reg-photo" type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} /><p className="form-hint form-hint--field">Optional.</p></div>
+          <div className="form-group"><label htmlFor="reg-photo">Profile picture</label><input id="reg-photo" type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} /></div>
           <button className="btn btn--primary btn--block" type="submit">Create account</button>
           {err ? <p className="form-hint" role="alert">{err}</p> : null}
         </form>
@@ -330,7 +290,7 @@ function Profile() {
       <form onSubmit={save}>
         <div className="form-group"><label>Name</label><input value={name} disabled={!edit} onChange={(e) => setName(e.target.value)} /></div>
         {edit ? <div className="form-group"><label>Profile picture</label><input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} /></div> : null}
-        {edit ? <button className="btn btn--primary" disabled={saving}>{saving ? 'Saving...' : 'Save profile'}</button> : <p className="form-hint">Tap the edit icon on your photo to update profile.</p>}
+        {edit ? <button className="btn btn--primary" disabled={saving}>{saving ? 'Saving...' : 'Save profile'}</button> : null}
       </form>
       <p className="form-hint">{msg}</p>
       <button className="btn btn--danger" onClick={() => { logout(); nav('/login') }}>Logout</button>
@@ -357,7 +317,6 @@ function DashboardHome({ inventory, orders }) {
   return (
     <>
       <h1 className="dash-title">Dashboard</h1>
-      <p className="dash-subtitle">Overview of your medicines and order flow.</p>
       <div className="stat-grid"><article className="stat-card"><p className="stat-card__label">Total medicines</p><p className="stat-card__value">{inventory.length}</p></article><article className="stat-card"><p className="stat-card__label">Pending orders</p><p className="stat-card__value">{pendingOrders}</p></article><article className="stat-card"><p className="stat-card__label">Approved orders</p><p className="stat-card__value">{approvedOrders}</p></article><article className="stat-card"><p className="stat-card__label">Declined orders</p><p className="stat-card__value">{declinedOrders}</p></article><article className="stat-card"><p className="stat-card__label">Low stock (&lt; 10)</p><p className="stat-card__value">{inventory.filter((m) => Number(m.quantity) < 10).length}</p></article></div>
     </>
   )
@@ -406,26 +365,18 @@ function PharmacyPendingPage() {
   }
   return (
     <div className="page-inner page-inner--narrow">
-      <header className="page-header">
-        <h1>Pharmacy approval pending</h1>
-        <p className="text-muted-block" style={{ marginBottom: '1rem' }}>Your account is active, but your pharmacy is not live yet.</p>
-      </header>
+      <header className="page-header"><h1>Pharmacy pending approval</h1></header>
       <section className="form-panel">
         {status === 'pending' ? (
           <>
-            <ol className="flow-card__steps flow-card__steps--spaced">
-              <li>You submitted your details and licence photo.</li>
-              <li>An administrator is reviewing your licence (usually check back soon).</li>
-              <li>When you are approved, this page will redirect you to the pharmacy dashboard automatically, or use <strong>Refresh status</strong> below.</li>
-            </ol>
-            <p className="form-hint">Signed in as <strong>{currentUser?.email}</strong>.</p>
+            <p className="form-hint">Awaiting admin review. <strong>{currentUser?.email}</strong></p>
             <div className="table-actions" style={{ marginTop: '1rem', flexWrap: 'wrap' }}>
               <button type="button" className="btn btn--primary" disabled={busy} onClick={refresh}>{busy ? 'Checking…' : 'Refresh status'}</button>
-              <Link to="/" className="btn btn--outline">Browse public site</Link>
+              <Link to="/" className="btn btn--outline">Home</Link>
             </div>
           </>
         ) : (
-          <p>Your pharmacy registration was not approved. If you believe this is an error, contact the programme administrator with your business details.</p>
+          <p>Registration was not approved.</p>
         )}
         <button type="button" className="btn btn--outline" style={{ marginTop: '1rem' }} onClick={() => { logout(); nav('/login') }}>Sign out</button>
       </section>
@@ -468,10 +419,7 @@ function AdminPage() {
   }
   return (
     <div className="page-inner">
-      <header className="page-header">
-        <h1>Admin · Pharmacy approvals</h1>
-        <p className="text-muted-block" style={{ marginBottom: '0.5rem' }}>New pharmacies stay hidden from customers until you approve them here. Open each licence image in a new tab if you need a closer look.</p>
-      </header>
+      <header className="page-header"><h1>Admin</h1></header>
       <section className="form-panel form-panel--admin-toolbar">
         <div className="table-actions admin-toolbar">
           <button type="button" className="btn btn--outline btn--sm" disabled={loading} onClick={load}>Reload list</button>
@@ -480,9 +428,7 @@ function AdminPage() {
         </div>
         {loading ? <p className="form-hint">Loading…</p> : null}
         {error ? <p className="form-hint">{error}</p> : null}
-        {!loading && !list.length ? (
-          <p className="form-hint admin-empty-msg">There are no pharmacies waiting for approval right now. Use <strong>Reload list</strong> after a new pharmacy registers.</p>
-        ) : null}
+        {!loading && !list.length ? <p className="form-hint admin-empty-msg">No pending pharmacies.</p> : null}
         <div className="card-grid card-grid--medicines">
           {list.map((p) => {
             const licenceSrc = resolveUploadAssetUrl(p.licenseImage)
@@ -491,9 +437,10 @@ function AdminPage() {
               <h2>{p.name}</h2>
               <p className="form-hint">{p.email}</p>
               {licenceSrc ? (
-                <a href={licenceSrc} target="_blank" rel="noreferrer" className="form-hint">Open licence image</a>
+                <a href={licenceSrc} target="_blank" rel="noreferrer" className="admin-licence-thumb">
+                  <img src={licenceSrc} alt="Licence" style={{ maxWidth: '100%', borderRadius: 8 }} />
+                </a>
               ) : null}
-              {licenceSrc ? <div style={{ marginTop: '0.75rem' }}><img src={licenceSrc} alt="Licence" style={{ maxWidth: '100%', borderRadius: 8 }} /></div> : null}
               <div className="table-actions" style={{ marginTop: '1rem' }}>
                 <button type="button" className="btn btn--primary btn--sm" disabled={busyId === p.id} onClick={() => run(adminApi.approvePharmacy, p.id)}>Approve</button>
                 <button type="button" className="btn btn--danger btn--sm btn--danger-solid" disabled={busyId === p.id} onClick={() => run(adminApi.rejectPharmacy, p.id)}>Reject</button>
@@ -535,7 +482,7 @@ export default function App() {
       setMedicines(safeMedicines)
     } catch {
       setMedicines([])
-      setPublicError('Could not fetch medicines. Please check backend server and try again.')
+      setPublicError('Could not load medicines.')
     } finally {
       setPublicLoading(false)
     }

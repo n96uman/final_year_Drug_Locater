@@ -6,9 +6,7 @@ export default function Footer() {
       <div className="footer-inner">
         <div>
           <p className="footer-brand">E-Pharmacy</p>
-          <p>
-            Location-based medicine search for <strong>Hawassa City</strong>. Customers find stock; pharmacies manage listings and orders.
-          </p>
+          <p>Medicine search — Hawassa.</p>
           <nav className="footer-links" aria-label="Footer">
             <Link to="/search">Search</Link>
             <Link to="/register">Register</Link>
