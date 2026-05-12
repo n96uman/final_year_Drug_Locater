@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Panel</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#app">Skip to content</a>
+
+    <header class="topbar">
+      <div class="topbar__inner">
+        <div class="brand">
+          <div class="brand__mark" aria-hidden="true">A</div>
+          <div class="brand__text">
+            <strong>Admin Panel</strong>
+            <span class="muted">Standalone UI</span>
+          </div>
+        </div>
+        <nav class="topbar__actions" aria-label="Top actions">
+          <button id="themeToggle" class="btn btn--ghost" type="button">Theme</button>
+          <button id="logoutBtn" class="btn btn--danger" type="button" hidden>Logout</button>
+        </nav>
+      </div>
+    </header>
+
+    <main id="app" class="container" role="main"></main>
+
+    <footer class="footer">
+      <div class="footer__inner">
+        <p class="muted">
+          This admin UI is <strong>not connected</strong> to backend/MongoDB yet.
+        </p>
+      </div>
+    </footer>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
+
