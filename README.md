@@ -77,18 +77,16 @@ VITE_API_BASE_URL=http://127.0.0.1:5000/api
 
 ## Vercel Deployment
 
-This project is now configured for Vercel deployment with both frontend and backend:
+The repo root is the Vercel project (do **not** set the Vercel “Root Directory” to `vite-project` only).
 
-- `backend/src/server.js` is deployed as a Node serverless function.
-- `vite-project` is built as a static site.
-- Requests to `/api/*` are routed to the backend.
-- Other requests are served by the frontend app (`index.html`) for SPA routing.
+- **`vercel.json`**: builds the Vite app into root `dist/`, serves that as the static site, and **rewrites** `/api/*` and `/uploads/*` to **`api/server.js`** (Express).
+- **`api/server.js`**: exports the same Express app as `backend/src/server.js`.
 
 ### 1) Import project to Vercel
 
 - Push the repository to GitHub.
-- In Vercel, import the repository as a single project.
-- Vercel will read `vercel.json` and use the configured builds/routes.
+- In Vercel, import the **repository root** (folder that contains `vercel.json` and `package.json`).
+- Leave **Root Directory** empty (or `.`), not `vite-project`.
 
 ### 2) Set environment variables in Vercel
 
@@ -109,6 +107,14 @@ After setting env vars, trigger a redeploy. Verify:
 
 - `https://your-app.vercel.app/api/health` returns `{"status":"ok"}`
 - Frontend loads and API requests work correctly
+
+### 4) Custom domain shows `404: NOT_FOUND`
+
+That Vercel error usually means the hostname is **not** attached to this project (or DNS is not pointing at Vercel yet). In the Vercel dashboard: **Project → Settings → Domains** — add your domain and follow the DNS records Vercel shows. Until DNS propagates, use the default `*.vercel.app` URL to test.
+
+### 5) Project root
+
+If the Vercel **Root Directory** is set to `vite-project` or `backend`, the new `vercel.json` at the **repo root** is ignored and you will get 404s. Clear Root Directory so the deployed project is the folder that contains `vercel.json`, `api/server.js`, and `package.json`.
 
 ## Notes
 

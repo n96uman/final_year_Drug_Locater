@@ -1,0 +1,7 @@
+{
+  "name": "e-pharmacy-drug-locater",
+  "private": true,
+  "scripts": {
+    "vercel-build": "npm run build --prefix vite-project && node scripts/copy-dist.js"
+  }
+}
