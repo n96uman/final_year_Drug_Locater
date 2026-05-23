@@ -14,7 +14,7 @@ import { isStrongPassword, strongPasswordHint } from './utils/passwordPolicy'
 import { redirectAfterAuth, pharmacyNeedsLocation } from './utils/authRedirect'
 import FileInput from './components/FileInput'
 import TermsAgreement from './components/TermsAgreement'
-import doctorHero from './assets/doctor.jfif'
+import heroImage from './assets/pharm.jpg'
 
 function PublicLayout({ children }) {
   return (
@@ -95,7 +95,7 @@ function Home({ medicines, loading, error }) {
           <Link className="btn btn--primary" to="/search">Search medicines</Link>
         </div>
         <aside className="hero__visual hero__visual--photo" aria-label="Healthcare illustration">
-          <img className="hero__visual-img" src={doctorHero} alt="Healthcare professional" width={640} height={480} decoding="async" />
+          <img className="hero__visual-img" src={heroImage} alt="Pharmacy in Hawassa" width={640} height={480} decoding="async" />
           <p className="hero__visual-caption">Smart search · Compare prices · Build your cart</p>
         </aside>
       </section>
