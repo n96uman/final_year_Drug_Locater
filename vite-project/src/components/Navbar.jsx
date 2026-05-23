@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import siteIcon from '../assets/drug_pic.png'
 
 function navSubtitle(user) {
   if (!user) return 'Medicine search · Hawassa'
@@ -34,9 +35,12 @@ export default function Navbar() {
     <header className="site-header">
       <div className="header-inner">
         <p className="site-title">
-          <NavLink to="/">
-            E-Pharmacy
-            <span>{navSubtitle(currentUser)}</span>
+          <NavLink to="/" className="site-title__link">
+            <img className="site-title__icon" src={siteIcon} alt="" width={36} height={36} decoding="async" />
+            <span className="site-title__text">
+              E-Pharmacy
+              <span>{navSubtitle(currentUser)}</span>
+            </span>
           </NavLink>
         </p>
         <input type="checkbox" id="nav-menu" className="nav-menu-checkbox" hidden />
