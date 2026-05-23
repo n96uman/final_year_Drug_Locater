@@ -20,9 +20,9 @@ export function AuthProvider({ children }) {
     localStorage.setItem('dl_session', JSON.stringify(next))
   }
 
-  const login = async ({ email, password }) => {
+  const login = async ({ email, password, acceptTerms }) => {
     try {
-      const data = await authApi.login({ email, password })
+      const data = await authApi.login({ email, password, acceptTerms: Boolean(acceptTerms) })
       persist({ user: data.user, token: data.token })
       return { ok: true, user: data.user }
     } catch (e) {
@@ -30,13 +30,14 @@ export function AuthProvider({ children }) {
     }
   }
 
-  const register = async ({ name, email, password, role, profileFile, licenseFile }) => {
+  const register = async ({ name, email, password, role, profileFile, licenseFile, acceptTerms }) => {
     try {
       const formData = new FormData()
       formData.append('name', name)
       formData.append('email', email)
       formData.append('password', password)
       formData.append('role', role)
+      formData.append('acceptTerms', acceptTerms ? 'true' : 'false')
       if (profileFile) formData.append('profileImage', profileFile)
       if (licenseFile) formData.append('licenseImage', licenseFile)
       const data = await authApi.register(formData)
@@ -47,11 +48,12 @@ export function AuthProvider({ children }) {
     }
   }
 
-  const updateProfile = async ({ name, profileFile }) => {
+  const updateProfile = async ({ name, profileFile, location }) => {
     try {
       if (!session?.token) return { ok: false, message: 'Please login again.' }
       const formData = new FormData()
       formData.append('name', name)
+      if (location != null) formData.append('location', location)
       if (profileFile) formData.append('profileImage', profileFile)
       const data = await authApi.updateProfile(formData, session.token)
       persist({ ...session, user: data.user })
@@ -74,6 +76,19 @@ export function AuthProvider({ children }) {
     setSession(null)
     localStorage.removeItem('dl_session')
   }, [session])
+
+  const updatePharmacyLicense = async (licenseFile) => {
+    try {
+      if (!session?.token) return { ok: false, message: 'Please login again.' }
+      const formData = new FormData()
+      formData.append('licenseImage', licenseFile)
+      const data = await authApi.updatePharmacyLicense(formData, session.token)
+      persist({ ...session, user: data.user })
+      return { ok: true, message: data.message }
+    } catch (e) {
+      return { ok: false, message: e.message }
+    }
+  }
 
   const refreshProfile = async () => {
     if (!session?.token) return { ok: false, message: 'No active session' }
@@ -120,6 +135,7 @@ export function AuthProvider({ children }) {
     register,
     refreshProfile,
     updateProfile,
+    updatePharmacyLicense,
     logout,
   }), [session, authLoading, logout])
 

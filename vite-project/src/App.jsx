@@ -11,6 +11,9 @@ import { useAuth } from './context/AuthContext'
 import { useCart } from './context/CartContext'
 import { medicineApi, orderApi, adminApi, fetchAdminLicenseObjectUrl } from './api/client'
 import { isStrongPassword, strongPasswordHint } from './utils/passwordPolicy'
+import { redirectAfterAuth, pharmacyNeedsLocation } from './utils/authRedirect'
+import FileInput from './components/FileInput'
+import TermsAgreement from './components/TermsAgreement'
 import doctorHero from './assets/doctor.jfif'
 
 function PublicLayout({ children }) {
@@ -46,6 +49,18 @@ function PharmacyRoute({ children }) {
   if (currentUser.role !== 'pharmacy') return <Navigate to="/" replace />
   const status = currentUser.pharmacyApprovalStatus || 'approved'
   if (status !== 'approved') return <Navigate to="/pharmacy-pending" replace />
+  if (pharmacyNeedsLocation(currentUser)) return <Navigate to="/pharmacy-location" replace />
+  return children
+}
+
+function PharmacyLocationRoute({ children }) {
+  const { currentUser, authLoading } = useAuth()
+  if (authLoading) return <p className="form-hint">Loading profile...</p>
+  if (!currentUser) return <Navigate to="/login" replace />
+  if (currentUser.role !== 'pharmacy') return <Navigate to="/" replace />
+  const status = currentUser.pharmacyApprovalStatus || 'approved'
+  if (status !== 'approved') return <Navigate to="/pharmacy-pending" replace />
+  if (!pharmacyNeedsLocation(currentUser)) return <Navigate to="/pharmacy-dashboard" replace />
   return children
 }
 
@@ -162,19 +177,16 @@ function Login() {
   const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [acceptTerms, setAcceptTerms] = useState(false)
   const [err, setErr] = useState('')
   const nav = useNavigate()
   const loc = useLocation()
   const submit = async (e) => {
     e.preventDefault()
-    const r = await login({ email, password })
+    if (!acceptTerms) return setErr('Please accept the terms and conditions.')
+    const r = await login({ email, password, acceptTerms })
     if (!r.ok) return setErr(r.message)
-    if (r.user.role === 'admin') return nav('/admin', { replace: true })
-    if (r.user.role === 'pharmacy' && r.user.pharmacyApprovalStatus && r.user.pharmacyApprovalStatus !== 'approved') {
-      return nav('/pharmacy-pending', { replace: true })
-    }
-    if (r.user.role === 'pharmacy') return nav('/pharmacy-dashboard', { replace: true })
-    nav(loc.state?.from || '/')
+    redirectAfterAuth(r.user, nav, loc.state?.from)
   }
   return (
     <div className="page-inner page-inner--narrow">
@@ -183,7 +195,8 @@ function Login() {
         <form onSubmit={submit}>
           <div className="form-group"><label htmlFor="login-email">Email</label><input id="login-email" type="text" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
           <div className="form-group"><label htmlFor="login-password">Password</label><input id="login-password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></div>
-          <button className="btn btn--primary btn--block" type="submit">Sign in</button>
+          <TermsAgreement checked={acceptTerms} onChange={setAcceptTerms} id="login-terms" />
+          <button className="btn btn--primary btn--block" type="submit" disabled={!acceptTerms}>Sign in</button>
           {err ? <p className="form-hint" role="alert">{err}</p> : null}
         </form>
         <div className="auth-alt">
@@ -200,16 +213,17 @@ function Register() {
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'customer' })
   const [file, setFile] = useState(null)
   const [licenseFile, setLicenseFile] = useState(null)
+  const [acceptTerms, setAcceptTerms] = useState(false)
   const [err, setErr] = useState('')
   const nav = useNavigate()
   const submit = async (e) => {
     e.preventDefault()
+    if (!acceptTerms) return setErr('Please accept the terms and conditions.')
     if (!isStrongPassword(form.password)) return setErr(strongPasswordHint)
     if (form.role === 'pharmacy' && !licenseFile) return setErr('Please upload a clear photo of your pharmacy licence.')
-    const r = await register({ ...form, profileFile: file, licenseFile: form.role === 'pharmacy' ? licenseFile : null })
+    const r = await register({ ...form, profileFile: file, licenseFile: form.role === 'pharmacy' ? licenseFile : null, acceptTerms })
     if (!r.ok) return setErr(r.message)
-    if (r.user.role === 'pharmacy' && r.user.pharmacyApprovalStatus === 'pending') return nav('/pharmacy-pending')
-    nav(r.user.role === 'pharmacy' ? '/pharmacy-dashboard' : '/')
+    redirectAfterAuth(r.user, nav, '/')
   }
   return (
     <div className="page-inner page-inner--narrow">
@@ -231,13 +245,11 @@ function Register() {
             </select>
           </div>
           {form.role === 'pharmacy' ? (
-            <div className="form-group">
-              <label htmlFor="reg-licence">Pharmacy licence (photo)</label>
-              <input id="reg-licence" type="file" accept="image/*" required={form.role === 'pharmacy'} onChange={(e) => setLicenseFile(e.target.files?.[0] || null)} />
-            </div>
+            <FileInput id="reg-licence" label="Pharmacy licence (photo)" required fileName={licenseFile?.name} onChange={setLicenseFile} hint="Only administrators can view your licence photo." />
           ) : null}
-          <div className="form-group"><label htmlFor="reg-photo">Profile picture</label><input id="reg-photo" type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} /></div>
-          <button className="btn btn--primary btn--block" type="submit">Create account</button>
+          <FileInput id="reg-photo" label="Profile picture (optional)" fileName={file?.name} onChange={setFile} />
+          <TermsAgreement checked={acceptTerms} onChange={setAcceptTerms} id="register-terms" />
+          <button className="btn btn--primary btn--block" type="submit" disabled={!acceptTerms}>Create account</button>
           {err ? <p className="form-hint" role="alert">{err}</p> : null}
         </form>
         <div className="auth-alt">
@@ -250,29 +262,47 @@ function Register() {
 }
 
 function Profile() {
-  const { currentUser, authLoading, refreshProfile, updateProfile, logout } = useAuth()
+  const { currentUser, authLoading, refreshProfile, updateProfile, updatePharmacyLicense, logout } = useAuth()
   const nav = useNavigate()
+  const isPharmacy = currentUser?.role === 'pharmacy'
   const [edit, setEdit] = useState(false)
   const [name, setName] = useState(currentUser?.name || '')
+  const [location, setLocation] = useState(currentUser?.location || '')
   const [file, setFile] = useState(null)
+  const [licenseFile, setLicenseFile] = useState(null)
   const [msg, setMsg] = useState('')
   const [saving, setSaving] = useState(false)
   useEffect(() => { refreshProfile() }, [])
-  useEffect(() => { setName(currentUser?.name || '') }, [currentUser?.name])
+  useEffect(() => {
+    setName(currentUser?.name || '')
+    setLocation(currentUser?.location || '')
+  }, [currentUser?.name, currentUser?.location])
   if (authLoading) return <section className="form-panel form-panel--wide"><p className="form-hint">Loading profile...</p></section>
   if (!currentUser) return <section className="form-panel form-panel--wide"><p className="form-hint">Profile not found. Please login again.</p></section>
   const save = async (e) => {
     e.preventDefault()
     setSaving(true)
-    const r = await updateProfile({ name, profileFile: file })
+    setMsg('')
+    const r = await updateProfile({ name, profileFile: file, location: isPharmacy ? location : undefined })
     if (!r.ok) {
       setSaving(false)
       return setMsg(r.message)
     }
-    setMsg('Saved')
+    if (licenseFile && isPharmacy) {
+      const lr = await updatePharmacyLicense(licenseFile)
+      if (!lr.ok) {
+        setSaving(false)
+        return setMsg(lr.message)
+      }
+      setMsg(lr.message || 'Saved')
+      setLicenseFile(null)
+    } else {
+      setMsg('Saved')
+    }
     setFile(null)
     setEdit(false)
     setSaving(false)
+    await refreshProfile()
   }
   return (
     <section className="form-panel form-panel--wide profile-card">
@@ -284,16 +314,59 @@ function Profile() {
         <div>
           <h2>Profile</h2>
           <p className="form-hint">{currentUser.email}</p>
+          {isPharmacy ? <p className="form-hint">Status: {currentUser.pharmacyApprovalStatus}</p> : null}
         </div>
       </div>
       <form onSubmit={save}>
         <div className="form-group"><label>Name</label><input value={name} disabled={!edit} onChange={(e) => setName(e.target.value)} /></div>
-        {edit ? <div className="form-group"><label>Profile picture</label><input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} /></div> : null}
+        {isPharmacy ? (
+          <div className="form-group">
+            <label htmlFor="profile-location">Pharmacy location (Hawassa)</label>
+            <textarea id="profile-location" rows={3} value={location} disabled={!edit} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. Tabor sub-city, near Hawassa University" />
+          </div>
+        ) : null}
+        {edit ? <FileInput label="Profile picture" fileName={file?.name} onChange={setFile} /> : null}
+        {edit && isPharmacy ? (
+          <FileInput label="Replace licence photo" fileName={licenseFile?.name} onChange={setLicenseFile} hint="Licence photos can only be viewed by administrators. Updating may require re-approval." />
+        ) : null}
         {edit ? <button className="btn btn--primary" disabled={saving}>{saving ? 'Saving...' : 'Save profile'}</button> : null}
       </form>
       <p className="form-hint">{msg}</p>
-      <button className="btn btn--danger" onClick={async () => { await logout(); nav('/login') }}>Logout</button>
+      <button type="button" className="btn btn--danger" onClick={async () => { await logout(); nav('/login') }}>Sign out</button>
     </section>
+  )
+}
+
+function PharmacyLocationPage() {
+  const { currentUser, updateProfile, refreshProfile } = useAuth()
+  const nav = useNavigate()
+  const [location, setLocation] = useState(currentUser?.location || '')
+  const [err, setErr] = useState('')
+  const [saving, setSaving] = useState(false)
+  const save = async (e) => {
+    e.preventDefault()
+    if (!location.trim()) return setErr('Please enter your pharmacy address in Hawassa.')
+    setSaving(true)
+    const r = await updateProfile({ name: currentUser?.name || '', location: location.trim() })
+    setSaving(false)
+    if (!r.ok) return setErr(r.message)
+    await refreshProfile()
+    nav('/pharmacy-dashboard', { replace: true })
+  }
+  return (
+    <div className="page-inner page-inner--narrow">
+      <header className="page-header"><h1>Pharmacy location</h1><p className="form-hint">Add your address so customers can find you in Hawassa.</p></header>
+      <section className="form-panel">
+        <form onSubmit={save}>
+          <div className="form-group">
+            <label htmlFor="pharmacy-location">Address / area</label>
+            <textarea id="pharmacy-location" rows={4} value={location} onChange={(e) => setLocation(e.target.value)} required placeholder="Street, sub-city, landmark…" />
+          </div>
+          <button className="btn btn--primary btn--block" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Continue to dashboard'}</button>
+          {err ? <p className="form-hint" role="alert">{err}</p> : null}
+        </form>
+      </section>
+    </div>
   )
 }
 
@@ -354,7 +427,8 @@ function PharmacyPendingPage() {
   const status = currentUser?.pharmacyApprovalStatus || 'pending'
   useEffect(() => {
     if (currentUser?.role === 'pharmacy' && currentUser.pharmacyApprovalStatus === 'approved') {
-      nav('/pharmacy-dashboard', { replace: true })
+      if (pharmacyNeedsLocation(currentUser)) nav('/pharmacy-location', { replace: true })
+      else nav('/pharmacy-dashboard', { replace: true })
     }
   }, [currentUser, nav])
   const refresh = async () => {
@@ -421,6 +495,8 @@ function AdminPharmacyLicenseImg({ userId, token }) {
 function AdminPage() {
   const { token, logout } = useAuth()
   const nav = useNavigate()
+  const [tab, setTab] = useState('pending')
+  const [stats, setStats] = useState(null)
   const [list, setList] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -430,16 +506,20 @@ function AdminPage() {
     setLoading(true)
     setError('')
     try {
-      const d = await adminApi.listPendingPharmacies(token)
-      setList(d.pharmacies || [])
+      const [statsRes, listRes] = await Promise.all([
+        adminApi.stats(token),
+        adminApi.listPharmacies(tab, token),
+      ])
+      setStats(statsRes.stats || null)
+      setList(listRes.pharmacies || [])
     } catch (e) {
-      setError(e.message || 'Could not load pending pharmacies.')
+      setError(e.message || 'Could not load admin data.')
       setList([])
     } finally {
       setLoading(false)
     }
   }
-  useEffect(() => { load() }, [token])
+  useEffect(() => { load() }, [token, tab])
   const run = async (fn, id) => {
     setBusyId(id)
     try {
@@ -453,26 +533,42 @@ function AdminPage() {
   }
   return (
     <div className="page-inner">
-      <header className="page-header"><h1>Admin</h1></header>
+      <header className="page-header"><h1>Admin console</h1><p className="form-hint">Review pharmacy registrations and licences.</p></header>
+      {stats ? (
+        <div className="stat-grid admin-stat-grid">
+          <article className="stat-card"><p className="stat-card__label">Pending</p><p className="stat-card__value">{stats.pendingPharmacies}</p></article>
+          <article className="stat-card"><p className="stat-card__label">Approved</p><p className="stat-card__value">{stats.approvedPharmacies}</p></article>
+          <article className="stat-card"><p className="stat-card__label">Rejected</p><p className="stat-card__value">{stats.rejectedPharmacies}</p></article>
+          <article className="stat-card"><p className="stat-card__label">Customers</p><p className="stat-card__value">{stats.customers}</p></article>
+        </div>
+      ) : null}
       <section className="form-panel form-panel--admin-toolbar">
+        <div className="admin-tabs" role="tablist">
+          {['pending', 'approved', 'rejected'].map((s) => (
+            <button key={s} type="button" className={`btn btn--sm ${tab === s ? 'btn--primary' : 'btn--outline'}`} onClick={() => setTab(s)}>{s.charAt(0).toUpperCase() + s.slice(1)}</button>
+          ))}
+        </div>
         <div className="table-actions admin-toolbar">
-          <button type="button" className="btn btn--outline btn--sm" disabled={loading} onClick={load}>Reload list</button>
+          <button type="button" className="btn btn--outline btn--sm" disabled={loading} onClick={load}>Reload</button>
           <Link to="/" className="btn btn--outline btn--sm">Public site</Link>
           <button type="button" className="btn btn--danger btn--sm" onClick={async () => { await logout(); nav('/login') }}>Sign out</button>
         </div>
         {loading ? <p className="form-hint">Loading…</p> : null}
-        {error ? <p className="form-hint">{error}</p> : null}
-        {!loading && !list.length ? <p className="form-hint admin-empty-msg">No pending pharmacies.</p> : null}
+        {error ? <p className="form-hint" role="alert">{error}</p> : null}
+        {!loading && !list.length ? <p className="form-hint admin-empty-msg">No {tab} pharmacies.</p> : null}
         <div className="card-grid card-grid--medicines">
           {list.map((p) => (
             <article className="form-panel pharmacy-order-card" key={p.id}>
               <h2>{p.name}</h2>
               <p className="form-hint">{p.email}</p>
-              <AdminPharmacyLicenseImg userId={p.id} token={token} />
-              <div className="table-actions" style={{ marginTop: '1rem' }}>
-                <button type="button" className="btn btn--primary btn--sm" disabled={busyId === p.id} onClick={() => run(adminApi.approvePharmacy, p.id)}>Approve</button>
-                <button type="button" className="btn btn--danger btn--sm btn--danger-solid" disabled={busyId === p.id} onClick={() => run(adminApi.rejectPharmacy, p.id)}>Reject</button>
-              </div>
+              {p.location ? <p className="form-hint"><strong>Location:</strong> {p.location}</p> : <p className="form-hint">No location yet</p>}
+              {p.hasLicense ? <AdminPharmacyLicenseImg userId={p.id} token={token} /> : <p className="form-hint">No licence uploaded</p>}
+              {tab === 'pending' ? (
+                <div className="table-actions" style={{ marginTop: '1rem' }}>
+                  <button type="button" className="btn btn--primary btn--sm" disabled={busyId === p.id} onClick={() => run(adminApi.approvePharmacy, p.id)}>Approve</button>
+                  <button type="button" className="btn btn--danger btn--sm btn--danger-solid" disabled={busyId === p.id} onClick={() => run(adminApi.rejectPharmacy, p.id)}>Reject</button>
+                </div>
+              ) : null}
             </article>
           ))}
         </div>
@@ -576,6 +672,7 @@ export default function App() {
       <Route path="/login" element={<PublicLayout><Login /></PublicLayout>} />
       <Route path="/register" element={<PublicLayout><Register /></PublicLayout>} />
       <Route path="/pharmacy-pending" element={<PharmacyPendingRoute><PublicLayout><PharmacyPendingPage /></PublicLayout></PharmacyPendingRoute>} />
+      <Route path="/pharmacy-location" element={<PharmacyLocationRoute><PublicLayout><PharmacyLocationPage /></PublicLayout></PharmacyLocationRoute>} />
       <Route path="/admin" element={<AdminRoute><PublicLayout><AdminPage /></PublicLayout></AdminRoute>} />
 
       <Route path="/pharmacy-dashboard" element={<PharmacyRoute><PharmacyLayout activeOrdersCount={activeOrdersCount} /></PharmacyRoute>}><Route index element={<DashboardHome inventory={inventory} orders={orders} />} /></Route>

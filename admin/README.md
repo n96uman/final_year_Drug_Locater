@@ -1,21 +1,17 @@
-# Admin (static, no backend)
+# Standalone admin UI
 
-This folder contains a **standalone** admin UI that is **not connected** to the existing `backend/` or `vite-project/` apps.
+Admin console connected to the E-Pharmacy backend API.
 
 ## Run
 
-- Open `admin/index.html` in your browser.
-- Or (recommended) serve the folder with any static server.
-
-Example:
+1. Start backend: `cd backend && npm run dev`
+2. Serve this folder (proxy `/api` to backend or use same host):
 
 ```bash
 cd admin
 npx serve .
 ```
 
-## Notes
+Default admin login: email `admin`, password `finalyear` (see root README).
 
-- There is **no MongoDB / API** usage here.
-- The login is **UI-only** and uses a temporary session flag in `sessionStorage`.
-
+You can also use `/admin` in the React app.

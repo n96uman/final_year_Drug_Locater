@@ -1,2 +1,12 @@
+node_modules/
 dist/
 .vercel/
+
+# Environment (never commit secrets)
+.env
+.env.local
+backend/.env
+vite-project/.env
+
+# Uploads created at runtime
+uploads/

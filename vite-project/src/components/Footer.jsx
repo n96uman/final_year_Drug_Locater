@@ -9,9 +9,8 @@ export default function Footer() {
           <p>Medicine search — Hawassa.</p>
           <nav className="footer-links" aria-label="Footer">
             <Link to="/search">Search</Link>
-            <Link to="/register">Register</Link>
-            <Link to="/login">Login</Link>
             <Link to="/pharmacies">Pharmacies</Link>
+            <Link to="/login">Login</Link>
           </nav>
         </div>
         <div className="footer-meta">

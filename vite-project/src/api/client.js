@@ -44,6 +44,7 @@ export const authApi = {
   login: (payload) => apiFetch('/auth/login', { method: 'POST', body: payload }),
   me: (token) => apiFetch('/auth/me', { token }),
   updateProfile: (formData, token) => apiFetchMultipart('/auth/profile', { method: 'PUT', formData, token }),
+  updatePharmacyLicense: (formData, token) => apiFetchMultipart('/auth/pharmacy-license', { method: 'PUT', formData, token }),
   abandonPendingPharmacy: (token) => apiFetch('/auth/pending-pharmacy-account', { method: 'DELETE', token }),
 }
 
@@ -70,6 +71,8 @@ export const orderApi = {
 }
 
 export const adminApi = {
+  stats: (token) => apiFetch('/admin/stats', { token }),
+  listPharmacies: (status, token) => apiFetch(`/admin/pharmacies?status=${encodeURIComponent(status)}`, { token }),
   listPendingPharmacies: (token) => apiFetch('/admin/pharmacies/pending', { token }),
   approvePharmacy: (id, token) => apiFetch(`/admin/pharmacies/${id}/approve`, { method: 'PUT', token }),
   rejectPharmacy: (id, token) => apiFetch(`/admin/pharmacies/${id}/reject`, { method: 'PUT', token }),

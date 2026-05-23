@@ -12,6 +12,8 @@ const schema = new mongoose.Schema(
       enum: ['pending', 'approved', 'rejected'],
       default: 'approved',
     },
+    location: { type: String, default: '' },
+    termsAcceptedAt: { type: Date, default: null },
   },
   { timestamps: true }
 )

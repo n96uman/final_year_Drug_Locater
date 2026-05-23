@@ -36,6 +36,7 @@ const imageMulter = multer({
 })
 
 exports.uploadProfileImage = imageMulter
+exports.uploadLicenseImage = imageMulter.single('licenseImage')
 exports.uploadRegisterFiles = imageMulter.fields([
   { name: 'profileImage', maxCount: 1 },
   { name: 'licenseImage', maxCount: 1 },

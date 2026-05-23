@@ -1,6 +1,8 @@
 const fs = require('fs')
 const path = require('path')
 const User = require('../models/User')
+const Medicine = require('../models/Medicine')
+const Order = require('../models/Order')
 const { filePublicUrl } = require('../utils/publicFileUrl')
 const { sanitizeUploadPath } = require('../utils/sanitizeUploadPath')
 
@@ -8,22 +10,53 @@ const img = (req, p) => filePublicUrl(req, sanitizeUploadPath(p))
 
 const UPLOAD_ROOT = process.env.VERCEL ? path.join('/tmp', 'uploads') : path.join(process.cwd(), 'uploads')
 
-exports.listPendingPharmacies = async (req, res) => {
-  const list = await User.find({ role: 'pharmacy', pharmacyApprovalStatus: 'pending' })
-    .select('name email profileImage licenseImage createdAt pharmacyApprovalStatus')
+function mapPharmacy(req, u) {
+  return {
+    id: u._id,
+    name: u.name,
+    email: u.email,
+    createdAt: u.createdAt,
+    profileImage: img(req, u.profileImage),
+    hasLicense: Boolean(u.licenseImage),
+    location: u.location || '',
+    pharmacyApprovalStatus: u.pharmacyApprovalStatus,
+  }
+}
+
+exports.getStats = async (_req, res) => {
+  const [pendingPharmacies, approvedPharmacies, rejectedPharmacies, customers, medicines, orders] =
+    await Promise.all([
+      User.countDocuments({ role: 'pharmacy', pharmacyApprovalStatus: 'pending' }),
+      User.countDocuments({ role: 'pharmacy', pharmacyApprovalStatus: 'approved' }),
+      User.countDocuments({ role: 'pharmacy', pharmacyApprovalStatus: 'rejected' }),
+      User.countDocuments({ role: 'customer' }),
+      Medicine.countDocuments(),
+      Order.countDocuments(),
+    ])
+  res.json({
+    stats: { pendingPharmacies, approvedPharmacies, rejectedPharmacies, customers, medicines, orders },
+  })
+}
+
+exports.listPharmacies = async (req, res) => {
+  const status = String(req.query.status || 'pending').toLowerCase()
+  const filter = { role: 'pharmacy' }
+  if (status !== 'all') {
+    if (!['pending', 'approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status filter' })
+    }
+    filter.pharmacyApprovalStatus = status
+  }
+  const list = await User.find(filter)
+    .select('name email profileImage licenseImage location createdAt pharmacyApprovalStatus')
     .sort({ createdAt: -1 })
     .lean()
-  res.json({
-    pharmacies: list.map((u) => ({
-      id: u._id,
-      name: u.name,
-      email: u.email,
-      createdAt: u.createdAt,
-      profileImage: img(req, u.profileImage),
-      licenseImage: u.licenseImage ? img(req, u.licenseImage) : null,
-      pharmacyApprovalStatus: u.pharmacyApprovalStatus,
-    })),
-  })
+  res.json({ pharmacies: list.map((u) => mapPharmacy(req, u)) })
+}
+
+exports.listPendingPharmacies = async (req, res) => {
+  req.query.status = 'pending'
+  return exports.listPharmacies(req, res)
 }
 
 exports.approvePharmacy = async (req, res) => {

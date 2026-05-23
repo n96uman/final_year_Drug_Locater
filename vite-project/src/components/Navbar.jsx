@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 function navSubtitle(user) {
@@ -12,8 +12,7 @@ function navSubtitle(user) {
 }
 
 export default function Navbar() {
-  const { currentUser, logout } = useAuth()
-  const nav = useNavigate()
+  const { currentUser } = useAuth()
   const [theme, setTheme] = useState('light')
 
   useEffect(() => {
@@ -50,32 +49,14 @@ export default function Navbar() {
             <li><NavLink to="/pharmacies">Pharmacies</NavLink></li>
             {currentUser?.role === 'customer' ? <li><NavLink to="/cart">Cart</NavLink></li> : null}
             {currentUser?.role === 'customer' ? <li><NavLink to="/profile">Profile</NavLink></li> : null}
-            {currentUser?.role === 'pharmacy' && currentUser?.pharmacyApprovalStatus !== 'approved' ? <li><NavLink to="/pharmacy-pending">Account status</NavLink></li> : null}
-            {currentUser?.role === 'pharmacy' && currentUser?.pharmacyApprovalStatus === 'approved' ? <li><NavLink to="/pharmacy-dashboard">Dashboard</NavLink></li> : null}
+            {currentUser?.role === 'pharmacy' && currentUser?.pharmacyApprovalStatus !== 'approved' ? (
+              <li><NavLink to="/pharmacy-pending">Account status</NavLink></li>
+            ) : null}
+            {currentUser?.role === 'pharmacy' && currentUser?.pharmacyApprovalStatus === 'approved' ? (
+              <li><NavLink to="/pharmacy-dashboard">Dashboard</NavLink></li>
+            ) : null}
             {currentUser?.role === 'admin' ? <li><NavLink to="/admin">Admin</NavLink></li> : null}
-            {!currentUser ? (
-              <>
-                <li><NavLink to="/login">Login</NavLink></li>
-                <li><NavLink to="/register">Register</NavLink></li>
-              </>
-            ) : (
-              currentUser &&
-              (currentUser.role === 'customer' ||
-                (currentUser.role === 'pharmacy' && currentUser.pharmacyApprovalStatus === 'approved')) ? (
-              <li>
-                <button
-                  type="button"
-                  className="nav-link-btn"
-                  onClick={async () => {
-                    await logout()
-                    nav('/login', { replace: true })
-                  }}
-                >
-                  Sign out
-                </button>
-              </li>
-              ) : null
-            )}
+            {!currentUser ? <li><NavLink to="/login">Login</NavLink></li> : null}
             <li>
               <button
                 type="button"
