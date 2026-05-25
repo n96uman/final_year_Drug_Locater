@@ -18,6 +18,7 @@ export default function MedicineCard({ medicine, onAddToCart }) {
       <dl className="medicine-card__meta">
         <div><dt>Pharmacy</dt><dd>{medicine.pharmacyName}</dd></div>
         <div><dt>Stock</dt><dd>{medicine.quantity ?? 0}</dd></div>
+        {medicine.distanceKm != null ? <div><dt>Distance</dt><dd>{medicine.distanceKm.toFixed(1)} km</dd></div> : null}
       </dl>
       <div className="medicine-card__pricing">
         <p className="medicine-card__price--solo">{medicine.price} ETB</p>

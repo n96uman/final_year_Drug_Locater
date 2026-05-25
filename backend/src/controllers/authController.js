@@ -34,6 +34,8 @@ const safe = (u, req) => ({
   profileImage: img(req, u.profileImage),
   pharmacyApprovalStatus: u.pharmacyApprovalStatus || 'approved',
   location: u.location || '',
+  locationLat: u.locationLat ?? null,
+  locationLng: u.locationLng ?? null,
   termsAccepted: Boolean(u.termsAcceptedAt),
   ...(u.role === 'pharmacy' ? { hasLicense: Boolean(u.licenseImage) } : {}),
 })
@@ -128,6 +130,10 @@ exports.updateProfile = async (req, res) => {
   if (req.file) req.user.profileImage = sanitizeUploadPath(`/uploads/${req.file.filename}`)
   if (req.user.role === 'pharmacy' && req.body.location != null) {
     req.user.location = String(req.body.location).trim().slice(0, 500)
+    const lat = Number(req.body.locationLat)
+    const lng = Number(req.body.locationLng)
+    req.user.locationLat = Number.isFinite(lat) ? lat : null
+    req.user.locationLng = Number.isFinite(lng) ? lng : null
   }
   await req.user.save()
   res.json({ user: safe(req.user, req) })

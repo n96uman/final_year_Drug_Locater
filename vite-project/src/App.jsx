@@ -112,14 +112,57 @@ function Home({ medicines, loading, error }) {
   )
 }
 
+const hasCoords = (lat, lng) => Number.isFinite(Number(lat)) && Number.isFinite(Number(lng))
+const distanceKm = (from, to) => {
+  if (!from || !hasCoords(to?.lat, to?.lng)) return null
+  const r = 6371
+  const dLat = (Number(to.lat) - Number(from.lat)) * Math.PI / 180
+  const dLng = (Number(to.lng) - Number(from.lng)) * Math.PI / 180
+  const lat1 = Number(from.lat) * Math.PI / 180
+  const lat2 = Number(to.lat) * Math.PI / 180
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2
+  return r * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
 function Search({ medicines, loading, error }) {
   const [q, setQ] = useState('')
+  const [sortMode, setSortMode] = useState('recent')
+  const [customerCoords, setCustomerCoords] = useState(null)
+  const [geoMsg, setGeoMsg] = useState('')
   const { addToCart } = useCart()
-  const filtered = useMemo(() => medicines.filter((m) => `${m.name || ''} ${m.genericName || ''} ${m.pharmacyName || ''}`.toLowerCase().includes(q.toLowerCase())), [q, medicines])
+  const useMyLocation = () => {
+    setGeoMsg('')
+    if (!navigator.geolocation) {
+      setGeoMsg('Location is not supported in this browser.')
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setCustomerCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+        setSortMode('distance')
+        setGeoMsg('Showing nearest pharmacies first.')
+      },
+      () => setGeoMsg('Could not get your location. Please allow location access.'),
+      { enableHighAccuracy: true, timeout: 10000 }
+    )
+  }
+  const filtered = useMemo(() => {
+    const list = medicines
+      .filter((m) => `${m.name || ''} ${m.genericName || ''} ${m.pharmacyName || ''}`.toLowerCase().includes(q.toLowerCase()))
+      .map((m) => ({ ...m, distanceKm: distanceKm(customerCoords, { lat: m.pharmacyLat, lng: m.pharmacyLng }) }))
+    if (sortMode === 'name') return list.sort((a, b) => String(a.pharmacyName || '').localeCompare(String(b.pharmacyName || '')))
+    if (sortMode === 'distance') return list.sort((a, b) => (a.distanceKm ?? Number.POSITIVE_INFINITY) - (b.distanceKm ?? Number.POSITIVE_INFINITY))
+    return list
+  }, [q, medicines, sortMode, customerCoords])
   return (
     <>
       <header className="page-header"><h1>Search medicine</h1></header>
       <form className="search-bar search-bar--wide search-form-spacing" onSubmit={(e) => e.preventDefault()}><SearchBar value={q} onChange={setQ} /><button type="submit" className="btn btn--primary">Search</button></form>
+      <div className="table-actions search-quick-actions">
+        <button type="button" className={`btn btn--sm ${sortMode === 'distance' ? 'btn--primary' : 'btn--outline'}`} onClick={useMyLocation}>Based on distance</button>
+        <button type="button" className={`btn btn--sm ${sortMode === 'name' ? 'btn--primary' : 'btn--outline'}`} onClick={() => setSortMode('name')}>Based on pharmacy name</button>
+      </div>
+      {geoMsg ? <p className="form-hint">{geoMsg}</p> : null}
       <div className="results-toolbar"><h2 className="section-title">Search results</h2></div>
       {loading ? <p className="form-hint">Loading…</p> : null}
       {!loading && error ? <p className="form-hint">{error}</p> : null}
@@ -405,6 +448,8 @@ function Profile() {
   const [edit, setEdit] = useState(false)
   const [name, setName] = useState(currentUser?.name || '')
   const [location, setLocation] = useState(currentUser?.location || '')
+  const [locationLat, setLocationLat] = useState(currentUser?.locationLat ?? '')
+  const [locationLng, setLocationLng] = useState(currentUser?.locationLng ?? '')
   const [file, setFile] = useState(null)
   const [licenseFile, setLicenseFile] = useState(null)
   const [msg, setMsg] = useState('')
@@ -414,15 +459,17 @@ function Profile() {
   useEffect(() => {
     setName(currentUser?.name || '')
     setLocation(currentUser?.location || '')
+    setLocationLat(currentUser?.locationLat ?? '')
+    setLocationLng(currentUser?.locationLng ?? '')
     setImageError(false)
-  }, [currentUser?.name, currentUser?.location, currentUser?.profileImage])
+  }, [currentUser?.name, currentUser?.location, currentUser?.locationLat, currentUser?.locationLng, currentUser?.profileImage])
   if (authLoading) return <section className="form-panel form-panel--wide"><p className="form-hint">Loading profile...</p></section>
   if (!currentUser) return <section className="form-panel form-panel--wide"><p className="form-hint">Profile not found. Please login again.</p></section>
   const save = async (e) => {
     e.preventDefault()
     setSaving(true)
     setMsg('')
-    const r = await updateProfile({ name, profileFile: file, location: isPharmacy ? location : undefined })
+    const r = await updateProfile({ name, profileFile: file, location: isPharmacy ? location : undefined, locationLat: isPharmacy ? locationLat : undefined, locationLng: isPharmacy ? locationLng : undefined })
     if (!r.ok) {
       setSaving(false)
       return setMsg(r.message)
@@ -443,6 +490,18 @@ function Profile() {
     setSaving(false)
     await refreshProfile()
   }
+  const fillCurrentLocation = () => {
+    if (!navigator.geolocation) return setMsg('Location is not supported in this browser.')
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocationLat(pos.coords.latitude)
+        setLocationLng(pos.coords.longitude)
+        setMsg('Coordinates added.')
+      },
+      () => setMsg('Could not get location. Please allow location access.'),
+      { enableHighAccuracy: true, timeout: 10000 }
+    )
+  }
   return (
     <section className="form-panel form-panel--wide profile-card">
       <div className="profile-card__header">
@@ -462,6 +521,8 @@ function Profile() {
           <div className="form-group">
             <label htmlFor="profile-location">Pharmacy location (Hawassa)</label>
             <textarea id="profile-location" rows={3} value={location} disabled={!edit} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. Tabor sub-city, near Hawassa University" />
+            {edit ? <button type="button" className="btn btn--outline btn--sm" onClick={fillCurrentLocation}>Use current GPS location</button> : null}
+            {hasCoords(locationLat, locationLng) ? <p className="form-hint">GPS: {Number(locationLat).toFixed(5)}, {Number(locationLng).toFixed(5)}</p> : <p className="form-hint">GPS coordinates help customers find the nearest pharmacy.</p>}
           </div>
         ) : null}
         {edit ? <FileInput label="Profile picture" fileName={file?.name} onChange={setFile} /> : null}
@@ -480,13 +541,27 @@ function PharmacyLocationPage() {
   const { currentUser, updateProfile, refreshProfile } = useAuth()
   const nav = useNavigate()
   const [location, setLocation] = useState(currentUser?.location || '')
+  const [locationLat, setLocationLat] = useState(currentUser?.locationLat ?? '')
+  const [locationLng, setLocationLng] = useState(currentUser?.locationLng ?? '')
   const [err, setErr] = useState('')
   const [saving, setSaving] = useState(false)
+  const fillCurrentLocation = () => {
+    setErr('')
+    if (!navigator.geolocation) return setErr('Location is not supported in this browser.')
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocationLat(pos.coords.latitude)
+        setLocationLng(pos.coords.longitude)
+      },
+      () => setErr('Could not get location. Please allow location access.'),
+      { enableHighAccuracy: true, timeout: 10000 }
+    )
+  }
   const save = async (e) => {
     e.preventDefault()
     if (!location.trim()) return setErr('Please enter your pharmacy address in Hawassa.')
     setSaving(true)
-    const r = await updateProfile({ name: currentUser?.name || '', location: location.trim() })
+    const r = await updateProfile({ name: currentUser?.name || '', location: location.trim(), locationLat, locationLng })
     setSaving(false)
     if (!r.ok) return setErr(r.message)
     await refreshProfile()
@@ -499,7 +574,9 @@ function PharmacyLocationPage() {
         <form onSubmit={save}>
           <div className="form-group">
             <label htmlFor="pharmacy-location">Address / area</label>
-            <textarea id="pharmacy-location" rows={4} value={location} onChange={(e) => setLocation(e.target.value)} required placeholder="Street, sub-city, landmark…" />
+            <textarea id="pharmacy-location" rows={4} value={location} onChange={(e) => setLocation(e.target.value)} required placeholder="Street, sub-city, landmark..." />
+            <button type="button" className="btn btn--outline btn--sm" onClick={fillCurrentLocation}>Use current GPS location</button>
+            {hasCoords(locationLat, locationLng) ? <p className="form-hint">GPS: {Number(locationLat).toFixed(5)}, {Number(locationLng).toFixed(5)}</p> : <p className="form-hint">Add GPS coordinates for nearest-pharmacy recommendations.</p>}
           </div>
           <button className="btn btn--primary btn--block" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Continue to dashboard'}</button>
           {err ? <p className="form-hint" role="alert">{err}</p> : null}
@@ -783,6 +860,9 @@ export default function App() {
           name: m.name || 'Unknown medicine',
           genericName: m.genericName || '',
           pharmacyName: m.pharmacyName || 'Unknown pharmacy',
+          pharmacyLocation: m.pharmacyLocation || '',
+          pharmacyLat: m.pharmacyLat ?? null,
+          pharmacyLng: m.pharmacyLng ?? null,
           price: Number(m.price) || 0,
           quantity: Number(m.quantity) || 0,
         }))

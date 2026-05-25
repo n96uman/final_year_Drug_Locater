@@ -13,6 +13,8 @@ const schema = new mongoose.Schema(
       default: 'approved',
     },
     location: { type: String, default: '' },
+    locationLat: { type: Number, default: null },
+    locationLng: { type: Number, default: null },
     termsAcceptedAt: { type: Date, default: null },
   },
   { timestamps: true }

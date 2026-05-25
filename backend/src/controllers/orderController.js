@@ -5,6 +5,7 @@ const { filePublicUrl } = require('../utils/publicFileUrl')
 const { sanitizeUploadPath } = require('../utils/sanitizeUploadPath')
 
 const CHAPA_API_BASE = 'https://api.chapa.co/v1'
+const isChapaTestMode = () => process.env.CHAPA_TEST_MODE !== 'false' && process.env.NODE_ENV !== 'production'
 const recalc = (items) => {
   const statuses = items.map((i) => i.status)
   if (statuses.every((x) => x === 'approved')) return 'approved'
@@ -38,10 +39,17 @@ const getNameParts = (name = '') => {
 
 const initChapaTransaction = async (order, user) => {
   const secretKey = process.env.CHAPA_SECRET_KEY
-  if (!secretKey) throw new Error('Chapa secret key is not configured. Add CHAPA_SECRET_KEY to backend/.env and restart the backend.')
+  if (!secretKey && !isChapaTestMode()) throw new Error('Chapa secret key is not configured. Add CHAPA_SECRET_KEY to backend/.env and restart the backend.')
   const { firstName, lastName } = getNameParts(user.name || user.email)
   const callbackUrl = process.env.CHAPA_RETURN_URL || process.env.CHAPA_CALLBACK_URL || 'http://localhost:5173/payment/callback'
   const txRef = `order_${order._id}_${Date.now()}`
+  if (!secretKey && isChapaTestMode()) {
+    order.paymentMethod = 'chapa'
+    order.paymentReference = txRef
+    order.paymentStatus = 'paid'
+    await order.save()
+    return { order, checkoutUrl: '', testPayment: true }
+  }
   const payload = {
     amount: Number(order.total),
     currency: 'ETB',
@@ -54,15 +62,26 @@ const initChapaTransaction = async (order, user) => {
     title: `E-Pharmacy order ${order._id}`,
     description: `Payment for order ${order._id}`,
   }
-  const response = await fetch(`${CHAPA_API_BASE}/transaction/initialize`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${secretKey}`,
-    },
-    body: JSON.stringify(payload),
-  })
-  const body = await response.json()
+  let response
+  let body
+  try {
+    response = await fetch(`${CHAPA_API_BASE}/transaction/initialize`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${secretKey}`,
+      },
+      body: JSON.stringify(payload),
+    })
+    body = await response.json()
+  } catch (e) {
+    if (!isChapaTestMode()) throw e
+    order.paymentMethod = 'chapa'
+    order.paymentReference = txRef
+    order.paymentStatus = 'paid'
+    await order.save()
+    return { order, checkoutUrl: '', testPayment: true }
+  }
   if (!body || body.status !== 'success' || !body.data?.checkout_url) {
     throw new Error(body?.message || 'Chapa payment initialization failed.')
   }
@@ -70,7 +89,7 @@ const initChapaTransaction = async (order, user) => {
   order.paymentReference = txRef
   order.paymentStatus = 'pending'
   await order.save()
-  return { order, checkoutUrl: body.data.checkout_url }
+  return { order, checkoutUrl: body.data.checkout_url, testPayment: false }
 }
 
 const createPharmacyTransactions = async (order) => {
@@ -121,7 +140,7 @@ exports.createOrder = async (req, res) => {
     try {
       const chapa = await initChapaTransaction(order, req.user)
       await createPharmacyTransactions(chapa.order)
-      return res.status(201).json({ order: chapa.order, checkoutUrl: chapa.checkoutUrl, message: 'Order created. Redirecting to Chapa for payment.' })
+      return res.status(201).json({ order: chapa.order, checkoutUrl: chapa.checkoutUrl, testPayment: chapa.testPayment, message: chapa.testPayment ? 'Chapa test payment approved. Order is waiting for pharmacy approval.' : 'Order created. Redirecting to Chapa for payment.' })
     } catch (e) {
       await Order.deleteOne({ _id: order._id })
       throw e

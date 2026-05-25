@@ -16,10 +16,12 @@ export default function PharmacyCard({ medicine, onAddToCart }) {
     <article className="pharmacy-result-card">
       <h3>{medicine.pharmacyName}</h3>
       <p>{medicine.name}</p>
+      {medicine.pharmacyLocation ? <p className="form-hint">{medicine.pharmacyLocation}</p> : null}
       <div className="pharmacy-result-card__row">
         <span className="pharmacy-result-card__qty">Available: <strong>{medicine.quantity ?? 0}</strong></span>
         <span className="pharmacy-result-card__price">{medicine.price} ETB</span>
       </div>
+      {medicine.distanceKm != null ? <p className="form-hint">Distance: {medicine.distanceKm.toFixed(1)} km</p> : null}
       <button type="button" className="btn btn--primary btn--sm" onClick={add}>Add to Cart</button>
     </article>
   )

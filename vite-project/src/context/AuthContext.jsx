@@ -48,12 +48,14 @@ export function AuthProvider({ children }) {
     }
   }
 
-  const updateProfile = async ({ name, profileFile, location }) => {
+  const updateProfile = async ({ name, profileFile, location, locationLat, locationLng }) => {
     try {
       if (!session?.token) return { ok: false, message: 'Please login again.' }
       const formData = new FormData()
       formData.append('name', name)
       if (location != null) formData.append('location', location)
+      if (locationLat != null) formData.append('locationLat', String(locationLat))
+      if (locationLng != null) formData.append('locationLng', String(locationLng))
       if (profileFile) formData.append('profileImage', profileFile)
       const data = await authApi.updateProfile(formData, session.token)
       persist({ ...session, user: data.user })

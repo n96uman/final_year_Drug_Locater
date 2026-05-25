@@ -103,7 +103,7 @@ export function CartProvider({ children }) {
       if (r.checkoutUrl) {
         window.location.assign(r.checkoutUrl)
       }
-      show(paymentMethod === 'chapa' ? 'Redirecting to Chapa for payment...' : 'Checkout submitted. Status changed to waiting for pharmacy approval.')
+      show(r.message || (paymentMethod === 'chapa' ? 'Chapa payment started.' : 'Checkout submitted. Status changed to waiting for pharmacy approval.'))
       return { ok: true }
     } catch (e) {
       show(e.message)
