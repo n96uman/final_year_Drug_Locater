@@ -38,7 +38,7 @@ const getNameParts = (name = '') => {
 
 const initChapaTransaction = async (order, user) => {
   const secretKey = process.env.CHAPA_SECRET_KEY
-  if (!secretKey) throw new Error('Chapa secret key is not configured.')
+  if (!secretKey) throw new Error('Chapa secret key is not configured. Add CHAPA_SECRET_KEY to backend/.env and restart the backend.')
   const { firstName, lastName } = getNameParts(user.name || user.email)
   const callbackUrl = process.env.CHAPA_RETURN_URL || process.env.CHAPA_CALLBACK_URL || 'http://localhost:5173/payment/callback'
   const txRef = `order_${order._id}_${Date.now()}`
@@ -136,7 +136,7 @@ exports.verifyChapaPayment = async (req, res) => {
   const order = await Order.findOne({ paymentReference: txRef, customer: req.user._id })
   if (!order) return res.status(404).json({ message: 'Payment order not found.' })
   const secretKey = process.env.CHAPA_SECRET_KEY
-  if (!secretKey) return res.status(500).json({ message: 'Chapa secret key is not configured.' })
+  if (!secretKey) return res.status(500).json({ message: 'Chapa secret key is not configured. Add CHAPA_SECRET_KEY to backend/.env and restart the backend.' })
   const response = await fetch(`${CHAPA_API_BASE}/transaction/verify/${encodeURIComponent(txRef)}`, {
     headers: {
       Authorization: `Bearer ${secretKey}`,
