@@ -13,7 +13,6 @@ function filePublicUrl(req, p) {
   if (p == null || p === '') return p
   const s = String(p)
   if (/^https?:\/\//i.test(s)) return s
-  if (s.startsWith('/uploads/')) return s
   const origin = getPublicOrigin(req)
   const path = s.startsWith('/') ? s : `/${s}`
   return origin ? `${origin}${path}` : path

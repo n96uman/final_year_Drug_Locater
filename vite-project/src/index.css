@@ -1869,6 +1869,25 @@ main {
   cursor: pointer;
 }
 
+.order-receipt {
+  display: block;
+  margin: 0.75rem 0 1rem;
+  color: var(--color-primary);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.order-receipt img {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: #f8fafc;
+  margin-bottom: 0.5rem;
+}
+
 .profile-card {
   max-width: 760px;
 }
@@ -1979,6 +1998,31 @@ main {
 
 .terms-block__check input {
   margin-top: 0.2rem;
+}
+
+.terms-page {
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.terms-page__panel {
+  line-height: 1.7;
+}
+
+.terms-page__section + .terms-page__section {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.terms-page__section h2 {
+  margin: 0 0 0.65rem;
+  font-size: 1.1rem;
+}
+
+.terms-page__section p {
+  margin: 0 0 0.75rem;
+  color: var(--color-text-muted);
 }
 
 .admin-tabs {

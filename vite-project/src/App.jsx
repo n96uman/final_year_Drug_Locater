@@ -15,6 +15,7 @@ import { isStrongPassword, strongPasswordHint } from './utils/passwordPolicy'
 import { redirectAfterAuth, pharmacyNeedsLocation } from './utils/authRedirect'
 import FileInput from './components/FileInput'
 import TermsAgreement from './components/TermsAgreement'
+import { TERMS_SECTIONS, TERMS_TITLE } from './content/termsText'
 import heroImage from './assets/pharm.jpg'
 
 function PublicLayout({ children }) {
@@ -185,7 +186,22 @@ function CartPage() {
             <table className="cart-table"><thead><tr><th>Medicine name</th><th>Pharmacy name</th><th>Price</th><th>Quantity</th><th>Action</th></tr></thead><tbody>{cartItems.map((i) => <CartItem key={i._id || i.id} item={i} onRemove={removeFromCart} onUpdateQuantity={updateQuantity} />)}</tbody></table>
           ) : <div className="cart-empty"><p>Your cart is empty.</p><Link to="/search" className="btn btn--outline">Find medicines</Link></div>}
         </div>
-        <aside className="cart-summary"><h2>Order summary</h2><div className="form-group"><label>Payment method</label><div className="radio-group"><label><input type="radio" name="paymentMethod" value="none" checked={paymentMethod === 'none'} onChange={(e) => setPaymentMethod(e.target.value)} /> Checkout request only</label><label><input type="radio" name="paymentMethod" value="chapa" checked={paymentMethod === 'chapa'} onChange={(e) => setPaymentMethod(e.target.value)} /> Pay with Chapa</label></div>{paymentMethod === 'chapa' ? <p className="form-hint">You will be redirected to Chapa for secure payment.</p> : null}</div><FileInput id="receipt-photo" label="Receipt photo" required fileName={receiptFile?.name} onChange={setReceiptFile} hint="Upload a clear payment or order receipt photo before checkout." /><div className="cart-summary__row"><span>Subtotal</span><span>{subtotal} ETB</span></div><div className="cart-summary__row"><span>Delivery</span><span>{delivery} ETB</span></div><div className="cart-summary__row cart-summary__row--total"><span>Total price</span><span>{total} ETB</span></div><button type="button" className="btn btn--primary btn--block cart-checkout-spacer" disabled={checkoutLoading || cartStatus === 'waiting' || cartItems.length === 0 || !receiptFile} onClick={handleCheckout}>{checkoutLoading ? 'Processing' : 'Checkout'}</button></aside>
+        <aside className="cart-summary">
+          <h2>Order summary</h2>
+          <div className="form-group">
+            <label>Payment method</label>
+            <div className="radio-group">
+              <label><input type="radio" name="paymentMethod" value="chapa" checked={paymentMethod === 'chapa'} onChange={(e) => setPaymentMethod(e.target.value)} /> Chapa</label>
+              <label><input type="radio" name="paymentMethod" value="none" checked={paymentMethod === 'none'} onChange={(e) => setPaymentMethod(e.target.value)} /> Checkout</label>
+            </div>
+            {paymentMethod === 'chapa' ? <p className="form-hint">You will be redirected to Chapa for secure payment.</p> : <p className="form-hint">Send the order to the pharmacy for approval.</p>}
+          </div>
+          <FileInput id="receipt-photo" label="Receipt photo" required fileName={receiptFile?.name} onChange={setReceiptFile} hint="Upload a clear payment or order receipt photo before checkout." />
+          <div className="cart-summary__row"><span>Subtotal</span><span>{subtotal} ETB</span></div>
+          <div className="cart-summary__row"><span>Delivery</span><span>{delivery} ETB</span></div>
+          <div className="cart-summary__row cart-summary__row--total"><span>Total price</span><span>{total} ETB</span></div>
+          <button type="button" className="btn btn--primary btn--block cart-checkout-spacer" disabled={checkoutLoading || cartStatus === 'waiting' || cartItems.length === 0 || !receiptFile} onClick={handleCheckout}>{checkoutLoading ? 'Processing' : paymentMethod === 'chapa' ? 'Pay with Chapa' : 'Checkout'}</button>
+        </aside>
       </div>
       {orderHistory ? (
         <section className="form-panel cart-history">
@@ -340,6 +356,27 @@ function PaymentCallback() {
         {status === 'verifying' ? <p className="form-hint">Verifying payment, please wait…</p> : null}
         {(status === 'success' || status === 'failed' || status === 'error') ? <p className="form-hint" role={status === 'failed' || status === 'error' ? 'alert' : undefined}>{message}</p> : null}
         <Link to="/cart" className="btn btn--primary">Return to cart</Link>
+      </section>
+    </div>
+  )
+}
+
+function TermsPage() {
+  return (
+    <div className="terms-page">
+      <header className="page-header">
+        <h1>{TERMS_TITLE}</h1>
+        <p className="form-hint">Read this agreement before creating an account, signing in, uploading files, or placing orders.</p>
+      </header>
+      <section className="form-panel terms-page__panel" aria-label={TERMS_TITLE}>
+        {TERMS_SECTIONS.map((section) => (
+          <section className="terms-page__section" key={section.heading}>
+            <h2>{section.heading}</h2>
+            {(Array.isArray(section.body) ? section.body : [section.body]).map((paragraph) => (
+              <p key={paragraph}>{paragraph}</p>
+            ))}
+          </section>
+        ))}
       </section>
     </div>
   )
@@ -539,6 +576,16 @@ function Inventory({ inventory, onUpdate, onDelete }) {
   return <><h1 className="dash-title">Inventory management</h1><div className="table-scroll"><table className="data-table"><thead><tr><th>Medicine name</th><th>Price (ETB)</th><th>Quantity</th><th>Actions</th></tr></thead><tbody>{inventory.map((m) => <tr key={m._id}><th scope="row">{m.name}</th><td><input type="number" value={m.price} onChange={(e) => onUpdate(m._id, 'price', Number(e.target.value))} /></td><td><input type="number" value={m.quantity} onChange={(e) => onUpdate(m._id, 'quantity', Number(e.target.value))} /></td><td><div className="table-actions"><button type="button" className="btn btn--danger btn--sm" onClick={() => onDelete(m._id)}>Delete</button></div></td></tr>)}</tbody></table></div></>
 }
 
+function OrderReceipt({ src, orderId }) {
+  if (!src) return <p className="form-hint">No receipt uploaded for this order.</p>
+  return (
+    <a className="order-receipt" href={src} target="_blank" rel="noreferrer">
+      <img src={src} alt={`Receipt for order ${String(orderId).slice(-6)}`} loading="lazy" />
+      <span>View receipt</span>
+    </a>
+  )
+}
+
 function PharmacyOrders({ orders, onApprove, onReject }) {
   const [busy, setBusy] = useState('')
   const [dismissedOrderIds, setDismissedOrderIds] = useState([])
@@ -551,7 +598,7 @@ function PharmacyOrders({ orders, onApprove, onReject }) {
       <h1 className="dash-title">Orders</h1>
       {pendingOrdersCount > 0 ? <p className="form-hint">New orders waiting: {pendingOrdersCount}</p> : null}
       {!visibleOrders.length ? <p className="form-hint">No orders to show.</p> : null}
-      <div className="card-grid card-grid--medicines">{visibleOrders.map((o) => { const hasPendingItems = o.items.some((item) => item.status === 'pending'); return <article className="form-panel pharmacy-order-card" key={o.id}><div className="pharmacy-order-card__top"><h2>Order #{String(o.id).slice(-6)}</h2>{!hasPendingItems ? <button type="button" className="pharmacy-order-card__close" aria-label="Remove old order" onClick={() => dismissOrder(o.id)}>x</button> : null}</div><p className="form-hint">Status: {o.status}</p>{o.receiptImage ? <a className="btn btn--outline btn--sm" href={o.receiptImage} target="_blank" rel="noreferrer">View receipt</a> : null}{o.items.map((i) => <p key={`${i.medicineId}-${i.status}`}>{i.medicineName} · Qty {i.quantity} · {i.status}</p>)}{hasPendingItems ? <div className="table-actions"><button className="btn btn--primary btn--sm" disabled={busy === o.id} onClick={() => run(onApprove, o.id)}>Approve</button><button className="btn btn--danger btn--sm btn--danger-solid" disabled={busy === o.id} onClick={() => run(onReject, o.id)}>Decline</button></div> : null}</article> })}</div>
+      <div className="card-grid card-grid--medicines">{visibleOrders.map((o) => { const hasPendingItems = o.items.some((item) => item.status === 'pending'); return <article className="form-panel pharmacy-order-card" key={o.id}><div className="pharmacy-order-card__top"><h2>Order #{String(o.id).slice(-6)}</h2>{!hasPendingItems ? <button type="button" className="pharmacy-order-card__close" aria-label="Remove old order" onClick={() => dismissOrder(o.id)}>x</button> : null}</div><p className="form-hint">Status: {o.status}</p><OrderReceipt src={o.receiptImage} orderId={o.id} />{o.items.map((i) => <p key={`${i.medicineId}-${i.status}`}>{i.medicineName} - Qty {i.quantity} - {i.status}</p>)}{hasPendingItems ? <div className="table-actions"><button className="btn btn--primary btn--sm" disabled={busy === o.id} onClick={() => run(onApprove, o.id)}>Approve</button><button className="btn btn--danger btn--sm btn--danger-solid" disabled={busy === o.id} onClick={() => run(onReject, o.id)}>Decline</button></div> : null}</article> })}</div>
     </>
   )
 }
@@ -827,6 +874,7 @@ export default function App() {
       <Route path="/profile" element={<CustomerRoute><PublicLayout><Profile /></PublicLayout></CustomerRoute>} />
       <Route path="/login" element={<PublicLayout><Login /></PublicLayout>} />
       <Route path="/register" element={<PublicLayout><Register /></PublicLayout>} />
+      <Route path="/terms" element={<PublicLayout><TermsPage /></PublicLayout>} />
       <Route path="/payment/callback" element={<CustomerRoute><PublicLayout><PaymentCallback /></PublicLayout></CustomerRoute>} />
       <Route path="/pharmacy-pending" element={<PharmacyPendingRoute><PublicLayout><PharmacyPendingPage /></PublicLayout></PharmacyPendingRoute>} />
       <Route path="/pharmacy-location" element={<PharmacyLocationRoute><PublicLayout><PharmacyLocationPage /></PublicLayout></PharmacyLocationRoute>} />
