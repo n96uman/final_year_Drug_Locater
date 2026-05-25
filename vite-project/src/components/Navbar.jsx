@@ -16,6 +16,10 @@ export default function Navbar() {
   const { currentUser } = useAuth()
   const [theme, setTheme] = useState('light')
   const location = useLocation()
+  const closeMainNav = () => {
+    const navMenu = document.getElementById('nav-menu')
+    if (navMenu) navMenu.checked = false
+  }
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme')
@@ -56,18 +60,19 @@ export default function Navbar() {
         </label>
         <nav className="main-nav" aria-label="Primary">
           <ul>
-            <li><NavLink to="/search">Search Medicine</NavLink></li>
-            <li><NavLink to="/pharmacies">Pharmacies</NavLink></li>
-            {currentUser?.role === 'customer' ? <li><NavLink to="/cart">Cart</NavLink></li> : null}
-            {currentUser?.role === 'customer' ? <li><NavLink to="/profile">Profile</NavLink></li> : null}
+            <li><NavLink to="/search" onClick={closeMainNav}>Search Medicine</NavLink></li>
+            <li><NavLink to="/pharmacies" onClick={closeMainNav}>Pharmacies</NavLink></li>
+            {currentUser?.role === 'customer' ? <li><NavLink to="/cart" onClick={closeMainNav}>Cart</NavLink></li> : null}
+            {currentUser?.role === 'customer' ? <li><NavLink to="/transactions/all" onClick={closeMainNav}>History</NavLink></li> : null}
+            {currentUser?.role === 'customer' ? <li><NavLink to="/profile" onClick={closeMainNav}>Profile</NavLink></li> : null}
             {currentUser?.role === 'pharmacy' && currentUser?.pharmacyApprovalStatus !== 'approved' ? (
-              <li><NavLink to="/pharmacy-pending">Account status</NavLink></li>
+              <li><NavLink to="/pharmacy-pending" onClick={closeMainNav}>Account status</NavLink></li>
             ) : null}
             {currentUser?.role === 'pharmacy' && currentUser?.pharmacyApprovalStatus === 'approved' ? (
-              <li><NavLink to="/pharmacy-dashboard">Dashboard</NavLink></li>
+              <li><NavLink to="/pharmacy-dashboard" onClick={closeMainNav}>Dashboard</NavLink></li>
               ) : null}
-            {currentUser?.role === 'admin' ? <li><NavLink to="/admin">Admin</NavLink></li> : null}
-            {!currentUser ? <li><NavLink to="/login">Login</NavLink></li> : null}
+            {currentUser?.role === 'admin' ? <li><NavLink to="/admin" onClick={closeMainNav}>Admin</NavLink></li> : null}
+            {!currentUser ? <li><NavLink to="/login" onClick={closeMainNav}>Login</NavLink></li> : null}
             <li>
               <button
                 type="button"

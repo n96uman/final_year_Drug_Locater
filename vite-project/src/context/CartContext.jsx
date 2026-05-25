@@ -51,9 +51,9 @@ export function CartProvider({ children }) {
     localStorage.setItem(KEY, JSON.stringify({ userId: cartUserId, cartItems, cartStatus, pendingOrderId, orderHistory }))
   }, [cartUserId, cartItems, cartStatus, pendingOrderId, orderHistory])
 
-  const show = (m) => { setNotice(m); clearTimeout(t.current); t.current = setTimeout(() => setNotice(''), 4500) }
-  const dismissNotice = () => { clearTimeout(t.current); setNotice('') }
-  const notify = (message) => show(message)
+  const show = useCallback((m) => { setNotice(m); clearTimeout(t.current); t.current = setTimeout(() => setNotice(''), 4500) }, [])
+  const dismissNotice = useCallback(() => { clearTimeout(t.current); setNotice('') }, [])
+  const notify = useCallback((message) => show(message), [show])
 
   const addToCart = (m) => {
     if (!currentUser || currentUser.role !== 'customer') return show('Please login as a customer to add items to cart.')
@@ -113,17 +113,25 @@ export function CartProvider({ children }) {
       const m = (d.orders || []).find((o) => (o._id || o.id) === pendingOrderId)
       if (!m) return
       setOrderHistory(countOrderItems(m))
-      if (m.status === 'approved') { setCartItems([]); setCartStatus('active'); setPendingOrderId(null); show('Order approved. Cart cleared.') }
+      if (m.status === 'approved') {
+        setCartItems([])
+        setCartStatus('active')
+        setPendingOrderId(null)
+        show(m.paymentMethod === 'chapa' ? 'Payment approved successfully. Your order is confirmed.' : 'Order approved successfully. Cart cleared.')
+      }
       if (m.status === 'rejected') {
         setCartItems([]); setCartStatus('active'); setPendingOrderId(null);
-        // Check if payment was chapa and refunded
         if (m.paymentMethod === 'chapa') {
-          show('Your money has been returned because the pharmacy declined your order.')
+          show('Order declined. Your Chapa test payment has been returned.')
         } else {
           show('Order declined by pharmacy. Cart cleared.')
         }
       }
-      if (m.status === 'partially_approved') { setCartStatus('active'); setPendingOrderId(null); show('Order partially approved. Check history summary.') }
+      if (m.status === 'partially_approved') {
+        setCartStatus('active')
+        setPendingOrderId(null)
+        show(m.paymentMethod === 'chapa' ? 'Order partially approved. Money for declined items will be returned.' : 'Order partially approved. Check history summary.')
+      }
     } catch {}
   }, [cartStatus, pendingOrderId, token])
 
@@ -131,7 +139,7 @@ export function CartProvider({ children }) {
   const delivery = cartItems.length ? 50 : 0
   const total = subtotal + delivery
 
-  const value = useMemo(() => ({ cartItems, cartStatus, orderHistory, addToCart, updateQuantity, removeFromCart, checkout, checkoutLoading, checkPendingOrderStatus, subtotal, delivery, total, notice, dismissNotice, notify }), [cartItems, cartStatus, orderHistory, checkoutLoading, checkPendingOrderStatus, subtotal, delivery, total, notice])
+  const value = useMemo(() => ({ cartItems, cartStatus, orderHistory, addToCart, updateQuantity, removeFromCart, checkout, checkoutLoading, checkPendingOrderStatus, subtotal, delivery, total, notice, dismissNotice, notify }), [cartItems, cartStatus, orderHistory, checkoutLoading, checkPendingOrderStatus, subtotal, delivery, total, notice, dismissNotice, notify])
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>
 }

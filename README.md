@@ -46,7 +46,12 @@ npm install
 npm run dev
 ```
 
-Create `backend/.env` from `backend/.env.example`.
+Create `backend/.env` from `backend/.env.example`. For Chapa developer test payments, add your test secret key:
+
+```env
+CHAPA_SECRET_KEY=CHASECK_TEST-xxxxxxxxxxxxxxxx
+CHAPA_RETURN_URL=http://localhost:5173/payment/callback
+```
 
 ### Frontend
 

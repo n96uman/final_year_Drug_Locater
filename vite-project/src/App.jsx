@@ -1,9 +1,5 @@
 ﻿import PharmacyTransactionHistoryPage from './PharmacyTransactionHistoryPage'
-  <Route path="/pharmacy-transactions/week" element={<PharmacyRoute><PharmacyLayout activeOrdersCount={activeOrdersCount} /><PharmacyTransactionHistoryPage period="week" /></PharmacyRoute>} />
-  <Route path="/pharmacy-transactions/all" element={<PharmacyRoute><PharmacyLayout activeOrdersCount={activeOrdersCount} /><PharmacyTransactionHistoryPage period="" /></PharmacyRoute>} />
 import TransactionHistoryPage from './TransactionHistoryPage'
-  <Route path="/transactions/week" element={<CustomerRoute><PublicLayout><TransactionHistoryPage period="week" /></PublicLayout></CustomerRoute>} />
-  <Route path="/transactions/all" element={<CustomerRoute><PublicLayout><TransactionHistoryPage period="" /></PublicLayout></CustomerRoute>} />
 import { useEffect, useMemo, useState } from 'react'
 import { Navigate, NavLink, Outlet, Route, Routes, useLocation, useNavigate, Link } from 'react-router-dom'
 import Navbar from './components/Navbar'
@@ -157,6 +153,7 @@ function CartPage() {
   }, [cartStatus, checkPendingOrderStatus])
 
   const handleCheckout = async () => {
+    if (paymentMethod === 'chapa' && !window.confirm('Continue to Chapa test payment?')) return
     await checkout(paymentMethod)
   }
 
@@ -274,6 +271,7 @@ function Register() {
 
 function PaymentCallback() {
   const { token } = useAuth()
+  const { notify } = useCart()
   const location = useLocation()
   const [status, setStatus] = useState('verifying')
   const [message, setMessage] = useState('')
@@ -294,16 +292,19 @@ function PaymentCallback() {
         if (result.status === 'paid') {
           setStatus('success')
           setMessage('Payment completed. Your order is now waiting for pharmacy approval.')
+          notify('Chapa payment completed successfully.')
         } else {
           setStatus('failed')
           setMessage(result.message || 'Payment could not be verified. Please try again.')
+          notify('Chapa payment was not approved. Your money will be returned.')
         }
       } catch (e) {
         setStatus('error')
         setMessage(e.message || 'Payment verification failed.')
+        notify(e.message || 'Payment verification failed.')
       }
     })()
-  }, [location.search, token])
+  }, [location.search, notify, token])
 
   return (
     <div className="page-inner page-inner--narrow">
@@ -427,25 +428,30 @@ function PharmacyLocationPage() {
 }
 
 function PharmacyLayout({ activeOrdersCount }) {
+  const closeDashNav = () => {
+    const menu = document.getElementById('dash-nav')
+    if (menu) menu.checked = false
+  }
   return (
     <>
       <a className="skip-link" href="#main-content">Skip to main content</a>
       <header className="site-header site-header--portal"><div className="header-inner header-inner--portal"><p className="site-title"><Link to="/pharmacy-dashboard">E-Pharmacy<span>Pharmacy portal · Hawassa</span></Link></p><div className="portal-header-actions"><Link className="btn btn--outline btn--sm portal-home-link" to="/">Customer site</Link><span className="portal-badge">Active orders {activeOrdersCount}</span></div></div></header>
-      <div className="dash-layout"><aside className="dash-sidebar"><input type="checkbox" id="dash-nav" className="dash-nav-checkbox" hidden /><label htmlFor="dash-nav" className="dash-nav-toggle">Menu</label><nav className="dash-nav"><ul><li><NavLink to="/pharmacy-dashboard">Dashboard</NavLink></li><li><NavLink to="/pharmacy-orders">Orders</NavLink></li><li><NavLink to="/inventory">Manage Medicines</NavLink></li><li><NavLink to="/add-medicine">Add Medicine</NavLink></li><li><NavLink to="/pharmacy-profile">Profile</NavLink></li></ul></nav></aside><main className="dash-main" id="main-content"><Outlet /></main></div>
+      <div className="dash-layout"><aside className="dash-sidebar"><input type="checkbox" id="dash-nav" className="dash-nav-checkbox" hidden /><label htmlFor="dash-nav" className="dash-nav-toggle">Menu</label><nav className="dash-nav"><ul><li><NavLink to="/pharmacy-dashboard" onClick={closeDashNav}>Dashboard</NavLink></li><li><NavLink to="/pharmacy-orders" onClick={closeDashNav}>Orders</NavLink></li><li><NavLink to="/inventory" onClick={closeDashNav}>Manage Medicines</NavLink></li><li><NavLink to="/add-medicine" onClick={closeDashNav}>Add Medicine</NavLink></li><li><NavLink to="/pharmacy-transactions/week" onClick={closeDashNav}>Week Transactions</NavLink></li><li><NavLink to="/pharmacy-transactions/all" onClick={closeDashNav}>History</NavLink></li><li><NavLink to="/pharmacy-profile" onClick={closeDashNav}>Profile</NavLink></li></ul></nav></aside><main className="dash-main" id="main-content"><Outlet /></main></div>
       <CartToast />
       <Footer />
     </>
   )
 }
 
-function DashboardHome({ inventory, orders }) {
+function DashboardHome({ inventory, orders, weeklyTransactions }) {
   const pendingOrders = orders.filter((o) => o.status === 'pending').length
   const approvedOrders = orders.filter((o) => o.status === 'approved').length
   const declinedOrders = orders.filter((o) => o.status === 'rejected').length
+  const weeklyTransactionTotal = weeklyTransactions.reduce((sum, tx) => sum + Number(tx.amount || 0), 0)
   return (
     <>
       <h1 className="dash-title">Dashboard</h1>
-      <div className="stat-grid"><article className="stat-card"><p className="stat-card__label">Total medicines</p><p className="stat-card__value">{inventory.length}</p></article><article className="stat-card"><p className="stat-card__label">Pending orders</p><p className="stat-card__value">{pendingOrders}</p></article><article className="stat-card"><p className="stat-card__label">Approved orders</p><p className="stat-card__value">{approvedOrders}</p></article><article className="stat-card"><p className="stat-card__label">Declined orders</p><p className="stat-card__value">{declinedOrders}</p></article><article className="stat-card"><p className="stat-card__label">Low stock (&lt; 10)</p><p className="stat-card__value">{inventory.filter((m) => Number(m.quantity) < 10).length}</p></article></div>
+      <div className="stat-grid"><article className="stat-card"><p className="stat-card__label">Total medicines</p><p className="stat-card__value">{inventory.length}</p></article><article className="stat-card"><p className="stat-card__label">Pending orders</p><p className="stat-card__value">{pendingOrders}</p></article><article className="stat-card"><p className="stat-card__label">Approved orders</p><p className="stat-card__value">{approvedOrders}</p></article><article className="stat-card"><p className="stat-card__label">Declined orders</p><p className="stat-card__value">{declinedOrders}</p></article><article className="stat-card"><p className="stat-card__label">Low stock (&lt; 10)</p><p className="stat-card__value">{inventory.filter((m) => Number(m.quantity) < 10).length}</p></article><article className="stat-card"><p className="stat-card__label">This week transactions</p><p className="stat-card__value">{weeklyTransactions.length}</p><p className="form-hint">{weeklyTransactionTotal} ETB</p><Link className="btn btn--outline btn--sm" to="/pharmacy-transactions/week">View week</Link></article></div>
     </>
   )
 }
@@ -463,7 +469,7 @@ function PharmacyOrders({ orders, onApprove, onReject }) {
   const [busy, setBusy] = useState('')
   const [dismissedOrderIds, setDismissedOrderIds] = useState([])
   const visibleOrders = orders.filter((o) => !dismissedOrderIds.includes(o.id))
-  const pendingOrdersCount = visibleOrders.filter((o) => o.status === 'pending').length
+  const pendingOrdersCount = visibleOrders.filter((o) => o.items.some((item) => item.status === 'pending')).length
   const dismissOrder = (id) => setDismissedOrderIds((prev) => [...prev, id])
   const run = async (fn, id) => { setBusy(id); await fn(id); setBusy('') }
   return (
@@ -471,7 +477,7 @@ function PharmacyOrders({ orders, onApprove, onReject }) {
       <h1 className="dash-title">Orders</h1>
       {pendingOrdersCount > 0 ? <p className="form-hint">New orders waiting: {pendingOrdersCount}</p> : null}
       {!visibleOrders.length ? <p className="form-hint">No orders to show.</p> : null}
-      <div className="card-grid card-grid--medicines">{visibleOrders.map((o) => <article className="form-panel pharmacy-order-card" key={o.id}><div className="pharmacy-order-card__top"><h2>Order #{String(o.id).slice(-6)}</h2>{o.status !== 'pending' ? <button type="button" className="pharmacy-order-card__close" aria-label="Remove old order" onClick={() => dismissOrder(o.id)}>x</button> : null}</div><p className="form-hint">Status: {o.status}</p>{o.items.map((i) => <p key={`${i.medicineId}-${i.status}`}>{i.medicineName} · Qty {i.quantity} · {i.status}</p>)}{o.status === 'pending' ? <div className="table-actions"><button className="btn btn--primary btn--sm" disabled={busy === o.id} onClick={() => run(onApprove, o.id)}>Approve</button><button className="btn btn--danger btn--sm btn--danger-solid" disabled={busy === o.id} onClick={() => run(onReject, o.id)}>Decline</button></div> : null}</article>)}</div>
+      <div className="card-grid card-grid--medicines">{visibleOrders.map((o) => { const hasPendingItems = o.items.some((item) => item.status === 'pending'); return <article className="form-panel pharmacy-order-card" key={o.id}><div className="pharmacy-order-card__top"><h2>Order #{String(o.id).slice(-6)}</h2>{!hasPendingItems ? <button type="button" className="pharmacy-order-card__close" aria-label="Remove old order" onClick={() => dismissOrder(o.id)}>x</button> : null}</div><p className="form-hint">Status: {o.status}</p>{o.items.map((i) => <p key={`${i.medicineId}-${i.status}`}>{i.medicineName} · Qty {i.quantity} · {i.status}</p>)}{hasPendingItems ? <div className="table-actions"><button className="btn btn--primary btn--sm" disabled={busy === o.id} onClick={() => run(onApprove, o.id)}>Approve</button><button className="btn btn--danger btn--sm btn--danger-solid" disabled={busy === o.id} onClick={() => run(onReject, o.id)}>Decline</button></div> : null}</article> })}</div>
     </>
   )
 }
@@ -641,6 +647,7 @@ export default function App() {
   const [publicError, setPublicError] = useState('')
   const [inventory, setInventory] = useState([])
   const [orders, setOrders] = useState([])
+  const [weeklyTransactions, setWeeklyTransactions] = useState([])
   const activeOrdersCount = orders.filter((o) => !['approved', 'rejected'].includes(o.status)).length
 
   const loadPublic = async () => {
@@ -686,13 +693,23 @@ export default function App() {
       setOrders([])
     }
   }
+  const loadWeeklyTransactions = async () => {
+    if (!token || currentUser?.role !== 'pharmacy') return setWeeklyTransactions([])
+    if (currentUser?.pharmacyApprovalStatus && currentUser.pharmacyApprovalStatus !== 'approved') return setWeeklyTransactions([])
+    try {
+      const d = await orderApi.listPharmacyTransactions(token, 'week')
+      setWeeklyTransactions(d.transactions || [])
+    } catch {
+      setWeeklyTransactions([])
+    }
+  }
 
   useEffect(() => { loadPublic() }, [])
-  useEffect(() => { loadInventory(); loadOrders() }, [token, currentUser?.role, currentUser?.pharmacyApprovalStatus])
+  useEffect(() => { loadInventory(); loadOrders(); loadWeeklyTransactions() }, [token, currentUser?.role, currentUser?.pharmacyApprovalStatus])
   useEffect(() => {
     if (!token || currentUser?.role !== 'pharmacy') return undefined
     if (currentUser?.pharmacyApprovalStatus && currentUser.pharmacyApprovalStatus !== 'approved') return undefined
-    const i = setInterval(loadOrders, 5000)
+    const i = setInterval(() => { loadOrders(); loadWeeklyTransactions() }, 5000)
     return () => clearInterval(i)
   }, [token, currentUser?.role, currentUser?.pharmacyApprovalStatus])
 
@@ -703,7 +720,7 @@ export default function App() {
     try {
       await orderApi.approveForPharmacy(id, token)
       notify('Order approved successfully.')
-      await Promise.all([loadOrders(), loadPublic(), loadInventory()])
+      await Promise.all([loadOrders(), loadPublic(), loadInventory(), loadWeeklyTransactions()])
     } catch (e) {
       notify(e.message || 'Failed to approve order.')
     }
@@ -712,7 +729,7 @@ export default function App() {
     try {
       await orderApi.rejectForPharmacy(id, token)
       notify('Order declined successfully.')
-      await Promise.all([loadOrders(), loadPublic(), loadInventory()])
+      await Promise.all([loadOrders(), loadPublic(), loadInventory(), loadWeeklyTransactions()])
     } catch (e) {
       notify(e.message || 'Failed to decline order.')
     }
@@ -724,6 +741,8 @@ export default function App() {
       <Route path="/search" element={<PublicLayout><Search medicines={medicines} loading={publicLoading} error={publicError} /></PublicLayout>} />
       <Route path="/pharmacies" element={<PublicLayout><Pharmacies medicines={medicines} loading={publicLoading} error={publicError} /></PublicLayout>} />
       <Route path="/cart" element={<CustomerRoute><PublicLayout><CartPage /></PublicLayout></CustomerRoute>} />
+      <Route path="/transactions/week" element={<CustomerRoute><PublicLayout><TransactionHistoryPage period="week" /></PublicLayout></CustomerRoute>} />
+      <Route path="/transactions/all" element={<CustomerRoute><PublicLayout><TransactionHistoryPage period="" /></PublicLayout></CustomerRoute>} />
       <Route path="/profile" element={<CustomerRoute><PublicLayout><Profile /></PublicLayout></CustomerRoute>} />
       <Route path="/login" element={<PublicLayout><Login /></PublicLayout>} />
       <Route path="/register" element={<PublicLayout><Register /></PublicLayout>} />
@@ -732,10 +751,12 @@ export default function App() {
       <Route path="/pharmacy-location" element={<PharmacyLocationRoute><PublicLayout><PharmacyLocationPage /></PublicLayout></PharmacyLocationRoute>} />
       <Route path="/admin" element={<AdminRoute><PublicLayout><AdminPage /></PublicLayout></AdminRoute>} />
 
-      <Route path="/pharmacy-dashboard" element={<PharmacyRoute><PharmacyLayout activeOrdersCount={activeOrdersCount} /></PharmacyRoute>}><Route index element={<DashboardHome inventory={inventory} orders={orders} />} /></Route>
+      <Route path="/pharmacy-dashboard" element={<PharmacyRoute><PharmacyLayout activeOrdersCount={activeOrdersCount} /></PharmacyRoute>}><Route index element={<DashboardHome inventory={inventory} orders={orders} weeklyTransactions={weeklyTransactions} />} /></Route>
       <Route path="/pharmacy-orders" element={<PharmacyRoute><PharmacyLayout activeOrdersCount={activeOrdersCount} /></PharmacyRoute>}><Route index element={<PharmacyOrders orders={orders} onApprove={approve} onReject={reject} />} /></Route>
       <Route path="/inventory" element={<PharmacyRoute><PharmacyLayout activeOrdersCount={activeOrdersCount} /></PharmacyRoute>}><Route index element={<Inventory inventory={inventory} onUpdate={updMed} onDelete={delMed} />} /></Route>
       <Route path="/add-medicine" element={<PharmacyRoute><PharmacyLayout activeOrdersCount={activeOrdersCount} /></PharmacyRoute>}><Route index element={<AddMedicine onAdd={addMed} />} /></Route>
+      <Route path="/pharmacy-transactions/week" element={<PharmacyRoute><PharmacyLayout activeOrdersCount={activeOrdersCount} /></PharmacyRoute>}><Route index element={<PharmacyTransactionHistoryPage period="week" />} /></Route>
+      <Route path="/pharmacy-transactions/all" element={<PharmacyRoute><PharmacyLayout activeOrdersCount={activeOrdersCount} /></PharmacyRoute>}><Route index element={<PharmacyTransactionHistoryPage period="" />} /></Route>
       <Route path="/pharmacy-profile" element={<PharmacyRoute><PharmacyLayout activeOrdersCount={activeOrdersCount} /></PharmacyRoute>}><Route index element={<Profile />} /></Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,23 +1,23 @@
-﻿// List transactions for a pharmacy (this week or all)
-exports.listPharmacyTransactions = async (req, res) => {
-  const { period } = req.query;
-  const userId = req.user._id;
-  let filter = { pharmacy: userId };
-  if (period === 'week') {
-    const now = new Date();
-    const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
-    filter.createdAt = { $gte: startOfWeek };
-  }
-  const txs = await require('../models/Transaction').find(filter).sort({ createdAt: -1 }).populate('order');
-  res.json({ transactions: txs });
-};
 const Order = require('../models/Order')
 const Medicine = require('../models/Medicine')
 const Transaction = require('../models/Transaction')
 
 const CHAPA_API_BASE = 'https://api.chapa.co/v1'
-const recalc = (items) => { const s = items.map((i) => i.status); if (s.every((x) => x === 'approved')) return 'approved'; if (s.every((x) => x === 'rejected')) return 'rejected'; if (s.some((x) => x === 'approved')) return 'partially_approved'; return 'pending' }
-const belongs = (i, id, name) => (i.pharmacyId && String(i.pharmacyId) === String(id)) || i.pharmacyName === name
+const recalc = (items) => {
+  const statuses = items.map((i) => i.status)
+  if (statuses.every((x) => x === 'approved')) return 'approved'
+  if (statuses.every((x) => x === 'rejected')) return 'rejected'
+  if (statuses.some((x) => x === 'approved')) return 'partially_approved'
+  return 'pending'
+}
+const belongs = (item, id, name) => (item.pharmacyId && String(item.pharmacyId) === String(id)) || item.pharmacyName === name
+const weekFilter = (period) => {
+  if (period !== 'week') return {}
+  const startOfWeek = new Date()
+  startOfWeek.setHours(0, 0, 0, 0)
+  startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay())
+  return { createdAt: { $gte: startOfWeek } }
+}
 
 const getNameParts = (name = '') => {
   const parts = String(name).trim().split(' ').filter(Boolean)
@@ -61,6 +61,33 @@ const initChapaTransaction = async (order, user) => {
   return { order, checkoutUrl: body.data.checkout_url }
 }
 
+const createPharmacyTransactions = async (order) => {
+  const byPharmacy = new Map()
+  for (const item of order.items) {
+    const key = String(item.pharmacyId || item.pharmacyName)
+    const current = byPharmacy.get(key) || {
+      order: order._id,
+      customer: order.customer,
+      pharmacy: item.pharmacyId,
+      amount: 0,
+      status: 'pending',
+      type: 'chapa',
+    }
+    current.amount += Number(item.price) * Number(item.quantity)
+    byPharmacy.set(key, current)
+  }
+  if (byPharmacy.size) await Transaction.insertMany([...byPharmacy.values()])
+}
+
+const updateOrderTransactions = async (order) => {
+  if (order.paymentMethod !== 'chapa') return
+  if (order.status === 'approved') {
+    await Transaction.updateMany({ order: order._id }, { status: 'completed', updatedAt: new Date() })
+  } else if (order.status === 'rejected') {
+    await Transaction.updateMany({ order: order._id }, { status: 'refunded', updatedAt: new Date() })
+  }
+}
+
 exports.createOrder = async (req, res) => {
   const paymentMethod = req.body.paymentMethod === 'chapa' ? 'chapa' : 'none'
   const final = []
@@ -71,15 +98,19 @@ exports.createOrder = async (req, res) => {
     if (med.quantity < qty) return res.status(400).json({ message: `You cannot checkout ${qty} of ${med.name}. Only ${med.quantity} available.` })
     final.push({ medicineId: med._id, pharmacyId: med.createdBy, medicineName: med.name, pharmacyName: med.pharmacyName, price: Number(med.price), quantity: qty, status: 'pending' })
   }
-  const subtotal = final.reduce((s, i) => s + i.price * i.quantity, 0)
+  const subtotal = final.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const delivery = final.length ? 50 : 0
   const total = subtotal + delivery
-  const order = await Order.create({ customer: req.user._id, items: final, subtotal, delivery, total, status: 'pending', paymentMethod, paymentStatus: paymentMethod === 'chapa' ? 'pending' : 'pending' })
+  const order = await Order.create({ customer: req.user._id, items: final, subtotal, delivery, total, status: 'pending', paymentMethod, paymentStatus: 'pending' })
   if (paymentMethod === 'chapa') {
-    // Create a pending transaction
-    await Transaction.create({ order: order._id, customer: req.user._id, amount: total, status: 'pending', type: 'chapa' })
-    const chapa = await initChapaTransaction(order, req.user)
-    return res.status(201).json({ order: chapa.order, checkoutUrl: chapa.checkoutUrl, message: 'Order created. Redirecting to Chapa for payment.' })
+    try {
+      const chapa = await initChapaTransaction(order, req.user)
+      await createPharmacyTransactions(chapa.order)
+      return res.status(201).json({ order: chapa.order, checkoutUrl: chapa.checkoutUrl, message: 'Order created. Redirecting to Chapa for payment.' })
+    } catch (e) {
+      await Order.deleteOne({ _id: order._id })
+      throw e
+    }
   }
   res.status(201).json({ order, message: 'Order placed and waiting pharmacy approval.' })
 }
@@ -100,82 +131,76 @@ exports.verifyChapaPayment = async (req, res) => {
   if (!body || body.status !== 'success') {
     order.paymentStatus = 'failed'
     await order.save()
-    // Mark transaction as failed
-    await Transaction.updateOne({ order: order._id }, { status: 'refunded', updatedAt: new Date() })
+    await Transaction.updateMany({ order: order._id }, { status: 'refunded', updatedAt: new Date() })
     return res.json({ status: 'failed', paymentStatus: order.paymentStatus, order, result: body })
   }
-  const transactionStatus = body.data?.status
-  if (transactionStatus === 'success') {
+  if (body.data?.status === 'success') {
     order.paymentStatus = 'paid'
     await order.save()
-    // Mark transaction as paid
-    await Transaction.updateOne({ order: order._id }, { status: 'pending', updatedAt: new Date() })
+    await Transaction.updateMany({ order: order._id }, { status: 'pending', updatedAt: new Date() })
     return res.json({ status: 'paid', paymentStatus: order.paymentStatus, order })
   }
   order.paymentStatus = 'failed'
   await order.save()
-  await Transaction.updateOne({ order: order._id }, { status: 'refunded', updatedAt: new Date() })
+  await Transaction.updateMany({ order: order._id }, { status: 'refunded', updatedAt: new Date() })
   res.json({ status: 'failed', paymentStatus: order.paymentStatus, order, result: body })
 }
 
 exports.getMyOrders = async (req, res) => res.json({ orders: await Order.find({ customer: req.user._id }).sort({ createdAt: -1 }) })
-exports.getPharmacyOrders = async (req, res) => { const id = req.user._id; const orders = await Order.find({ $or: [{ 'items.pharmacyId': id }, { 'items.pharmacyName': req.user.name }] }).populate('customer','name email').sort({ createdAt: -1 }); res.json({ orders: orders.map((o) => ({ id: o._id, customer: o.customer, createdAt: o.createdAt, status: o.status, items: o.items.filter((i) => belongs(i,id,req.user.name)) })) }) }
 
-  for (const it of list) { await Medicine.updateOne({ _id: it.medicineId, quantity: { $gte: it.quantity } }, { $inc: { quantity: -it.quantity } }) }
-  o.items = o.items.map((i) => belongs(i,id,req.user.name) && i.status === 'pending' ? { ...i.toObject(), status: 'approved', approvedAt: new Date() } : i)
-  o.status = recalc(o.items)
-  await o.save()
-  res.json({ message: 'Order approved and stock updated.', order: o }) }
+exports.getPharmacyOrders = async (req, res) => {
+  const id = req.user._id
+  const orders = await Order.find({ $or: [{ 'items.pharmacyId': id }, { 'items.pharmacyName': req.user.name }] }).populate('customer', 'name email').sort({ createdAt: -1 })
+  res.json({ orders: orders.map((order) => ({ id: order._id, customer: order.customer, createdAt: order.createdAt, status: order.status, items: order.items.filter((item) => belongs(item, id, req.user.name)) })) })
+}
+
 exports.approvePharmacyOrder = async (req, res) => {
-  const id = req.user._id;
-  const o = await Order.findById(req.params.orderId);
-  if (!o) return res.status(404).json({ message: 'Order not found' });
-  const list = o.items.filter((i) => belongs(i, id, req.user.name) && i.status === 'pending');
-  if (!list.length) return res.status(400).json({ message: 'No pending items for this pharmacy in the selected order' });
-  for (const it of list) {
-    const m = await Medicine.findById(it.medicineId);
-    if (!m || m.quantity < it.quantity) return res.status(400).json({ message: `Cannot approve ${it.medicineName}. Requested ${it.quantity}, available ${m ? m.quantity : 0}.` });
+  const id = req.user._id
+  const order = await Order.findById(req.params.orderId)
+  if (!order) return res.status(404).json({ message: 'Order not found' })
+  const list = order.items.filter((item) => belongs(item, id, req.user.name) && item.status === 'pending')
+  if (!list.length) return res.status(400).json({ message: 'No pending items for this pharmacy in the selected order' })
+  for (const item of list) {
+    const med = await Medicine.findById(item.medicineId)
+    if (!med || med.quantity < item.quantity) return res.status(400).json({ message: `Cannot approve ${item.medicineName}. Requested ${item.quantity}, available ${med ? med.quantity : 0}.` })
   }
-  for (const it of list) {
-    await Medicine.updateOne({ _id: it.medicineId, quantity: { $gte: it.quantity } }, { $inc: { quantity: -it.quantity } });
+  for (const item of list) {
+    await Medicine.updateOne({ _id: item.medicineId, quantity: { $gte: item.quantity } }, { $inc: { quantity: -item.quantity } })
   }
-  o.items = o.items.map((i) => belongs(i, id, req.user.name) && i.status === 'pending' ? { ...i.toObject(), status: 'approved', approvedAt: new Date() } : i);
-  o.status = recalc(o.items);
-  await o.save();
-  // If all items approved and payment is chapa, mark transaction as completed
-  if (o.paymentMethod === 'chapa' && o.status === 'approved') {
-    await Transaction.updateOne({ order: o._id }, { status: 'completed', updatedAt: new Date() });
-    // TODO: Transfer money to pharmacy (simulate)
+  order.items = order.items.map((item) => belongs(item, id, req.user.name) && item.status === 'pending' ? { ...item.toObject(), status: 'approved', approvedAt: new Date() } : item)
+  order.status = recalc(order.items)
+  await order.save()
+  if (order.paymentMethod === 'chapa') {
+    await Transaction.updateMany({ order: order._id, pharmacy: id }, { status: 'completed', updatedAt: new Date() })
   }
-  res.json({ message: 'Order approved and stock updated.', order: o });
+  await updateOrderTransactions(order)
+  res.json({ message: 'Order approved and stock updated.', order })
 }
 
 exports.rejectPharmacyOrder = async (req, res) => {
-  const id = req.user._id;
-  const o = await Order.findById(req.params.orderId);
-  if (!o) return res.status(404).json({ message: 'Order not found' });
-  const has = o.items.some((i) => belongs(i, id, req.user.name) && i.status === 'pending');
-  if (!has) return res.status(400).json({ message: 'No pending items for this pharmacy in the selected order' });
-  o.items = o.items.map((i) => belongs(i, id, req.user.name) && i.status === 'pending' ? { ...i.toObject(), status: 'rejected' } : i);
-  o.status = recalc(o.items);
-  await o.save();
-  // If all items rejected and payment is chapa, refund
-  if (o.paymentMethod === 'chapa' && o.status === 'rejected') {
-    await Transaction.updateOne({ order: o._id }, { status: 'refunded', updatedAt: new Date() });
-    // TODO: Refund money to customer (simulate)
+  const id = req.user._id
+  const order = await Order.findById(req.params.orderId)
+  if (!order) return res.status(404).json({ message: 'Order not found' })
+  const has = order.items.some((item) => belongs(item, id, req.user.name) && item.status === 'pending')
+  if (!has) return res.status(400).json({ message: 'No pending items for this pharmacy in the selected order' })
+  order.items = order.items.map((item) => belongs(item, id, req.user.name) && item.status === 'pending' ? { ...item.toObject(), status: 'rejected' } : item)
+  order.status = recalc(order.items)
+  await order.save()
+  if (order.paymentMethod === 'chapa') {
+    await Transaction.updateMany({ order: order._id, pharmacy: id }, { status: 'refunded', updatedAt: new Date() })
   }
-  res.json({ message: 'Order declined for this pharmacy.', order: o });
+  await updateOrderTransactions(order)
+  res.json({ message: 'Order declined for this pharmacy.', order })
 }
-// List transactions for a customer (this week or all)
+
 exports.listTransactions = async (req, res) => {
-  const { period } = req.query;
-  const userId = req.user._id;
-  let filter = { customer: userId };
-  if (period === 'week') {
-    const now = new Date();
-    const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
-    filter.createdAt = { $gte: startOfWeek };
-  }
-  const txs = await Transaction.find(filter).sort({ createdAt: -1 }).populate('order');
-  res.json({ transactions: txs });
-};
+  const filter = { customer: req.user._id, ...weekFilter(req.query.period) }
+  const transactions = await Transaction.find(filter).sort({ createdAt: -1 }).populate('order')
+  res.json({ transactions })
+}
+
+exports.listPharmacyTransactions = async (req, res) => {
+  const filter = { pharmacy: req.user._id, ...weekFilter(req.query.period) }
+  const transactions = await Transaction.find(filter).sort({ createdAt: -1 }).populate('order')
+  res.json({ transactions })
+}
