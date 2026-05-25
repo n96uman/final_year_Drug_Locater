@@ -26,8 +26,8 @@ The backend creates one admin account automatically the first time it connects t
 
 | Field | Value |
 |-------|--------|
-| **Email** (login username) | `admin` |
-| **Password** | `finalyear` |
+| **Email** (login username) | ***** |
+| **Password** | ***** |
 
 1. Start the backend and frontend (see below).
 2. Open the app → **Login**.
