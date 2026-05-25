@@ -57,6 +57,7 @@ export const medicineApi = {
 }
 
 export const orderApi = {
+    listPharmacyTransactions: (token, period = '') => apiFetch(`/orders/pharmacy/transactions${period ? `?period=${period}` : ''}`, { token }),
   checkout: (payload, token) => apiFetch('/orders', { method: 'POST', body: payload, token }),
   verifyChapaPayment: (payload, token) => apiFetch('/orders/payment/chapa/verify', { method: 'POST', body: payload, token }),
   listMine: (token) => apiFetch('/orders/mine', { token }),

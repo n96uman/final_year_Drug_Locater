@@ -1,4 +1,7 @@
-﻿import TransactionHistoryPage from './TransactionHistoryPage'
+﻿import PharmacyTransactionHistoryPage from './PharmacyTransactionHistoryPage'
+  <Route path="/pharmacy-transactions/week" element={<PharmacyRoute><PharmacyLayout activeOrdersCount={activeOrdersCount} /><PharmacyTransactionHistoryPage period="week" /></PharmacyRoute>} />
+  <Route path="/pharmacy-transactions/all" element={<PharmacyRoute><PharmacyLayout activeOrdersCount={activeOrdersCount} /><PharmacyTransactionHistoryPage period="" /></PharmacyRoute>} />
+import TransactionHistoryPage from './TransactionHistoryPage'
   <Route path="/transactions/week" element={<CustomerRoute><PublicLayout><TransactionHistoryPage period="week" /></PublicLayout></CustomerRoute>} />
   <Route path="/transactions/all" element={<CustomerRoute><PublicLayout><TransactionHistoryPage period="" /></PublicLayout></CustomerRoute>} />
 import { useEffect, useMemo, useState } from 'react'

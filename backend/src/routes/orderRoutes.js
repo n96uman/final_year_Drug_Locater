@@ -7,6 +7,7 @@ r.post('/payment/chapa/verify', protect, allowRoles('customer'), c.verifyChapaPa
 r.get('/mine', protect, allowRoles('customer'), c.getMyOrders)
 r.get('/transactions', protect, allowRoles('customer'), c.listTransactions)
 r.get('/pharmacy', protect, allowRoles('pharmacy'), requireApprovedPharmacy, c.getPharmacyOrders)
+r.get('/pharmacy/transactions', protect, allowRoles('pharmacy'), requireApprovedPharmacy, c.listPharmacyTransactions)
 r.put('/:orderId/approve', protect, allowRoles('pharmacy'), requireApprovedPharmacy, c.approvePharmacyOrder)
 r.put('/:orderId/reject', protect, allowRoles('pharmacy'), requireApprovedPharmacy, c.rejectPharmacyOrder)
 r.put('/:orderId/decline', protect, allowRoles('pharmacy'), requireApprovedPharmacy, c.rejectPharmacyOrder)

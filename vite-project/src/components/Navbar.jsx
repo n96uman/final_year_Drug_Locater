@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import siteIcon from '../assets/drug_pic.png'
 
@@ -15,6 +15,7 @@ function navSubtitle(user) {
 export default function Navbar() {
   const { currentUser } = useAuth()
   const [theme, setTheme] = useState('light')
+  const location = useLocation()
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme')
@@ -30,6 +31,12 @@ export default function Navbar() {
     localStorage.setItem('theme', nextTheme)
     document.documentElement.setAttribute('data-theme', nextTheme)
   }
+
+  // Hide navbar menu on mobile after navigation
+  useEffect(() => {
+    const navMenu = document.getElementById('nav-menu')
+    if (navMenu) navMenu.checked = false
+  }, [location])
 
   return (
     <header className="site-header">
@@ -58,7 +65,7 @@ export default function Navbar() {
             ) : null}
             {currentUser?.role === 'pharmacy' && currentUser?.pharmacyApprovalStatus === 'approved' ? (
               <li><NavLink to="/pharmacy-dashboard">Dashboard</NavLink></li>
-            ) : null}
+              ) : null}
             {currentUser?.role === 'admin' ? <li><NavLink to="/admin">Admin</NavLink></li> : null}
             {!currentUser ? <li><NavLink to="/login">Login</NavLink></li> : null}
             <li>

@@ -1,4 +1,17 @@
-﻿const Order = require('../models/Order')
+﻿// List transactions for a pharmacy (this week or all)
+exports.listPharmacyTransactions = async (req, res) => {
+  const { period } = req.query;
+  const userId = req.user._id;
+  let filter = { pharmacy: userId };
+  if (period === 'week') {
+    const now = new Date();
+    const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+    filter.createdAt = { $gte: startOfWeek };
+  }
+  const txs = await require('../models/Transaction').find(filter).sort({ createdAt: -1 }).populate('order');
+  res.json({ transactions: txs });
+};
+const Order = require('../models/Order')
 const Medicine = require('../models/Medicine')
 const Transaction = require('../models/Transaction')
 
