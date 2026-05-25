@@ -145,6 +145,7 @@ function CartPage() {
   const { token } = useAuth()
   const { cartItems, cartStatus, orderHistory, removeFromCart, updateQuantity, checkout, checkoutLoading, cancelPendingOrder, cancelLoading, checkPendingOrderStatus, subtotal, delivery, total } = useCart()
   const [paymentMethod, setPaymentMethod] = useState('none')
+  const [receiptFile, setReceiptFile] = useState(null)
   const [transactions, setTransactions] = useState([])
   const [transactionsLoading, setTransactionsLoading] = useState(false)
   const [transactionsError, setTransactionsError] = useState('')
@@ -165,8 +166,10 @@ function CartPage() {
   }, [token, cartStatus, orderHistory?.updatedAt])
 
   const handleCheckout = async () => {
+    if (!receiptFile) return
     if (paymentMethod === 'chapa' && !window.confirm('Continue to Chapa test payment?')) return
-    await checkout(paymentMethod)
+    const result = await checkout(paymentMethod, receiptFile)
+    if (result.ok) setReceiptFile(null)
   }
   const handleCancelWaitingOrder = async () => {
     if (!window.confirm('Cancel this waiting order? You can edit your cart again after cancelling.')) return
@@ -182,7 +185,7 @@ function CartPage() {
             <table className="cart-table"><thead><tr><th>Medicine name</th><th>Pharmacy name</th><th>Price</th><th>Quantity</th><th>Action</th></tr></thead><tbody>{cartItems.map((i) => <CartItem key={i._id || i.id} item={i} onRemove={removeFromCart} onUpdateQuantity={updateQuantity} />)}</tbody></table>
           ) : <div className="cart-empty"><p>Your cart is empty.</p><Link to="/search" className="btn btn--outline">Find medicines</Link></div>}
         </div>
-        <aside className="cart-summary"><h2>Order summary</h2><div className="form-group"><label>Payment method</label><div className="radio-group"><label><input type="radio" name="paymentMethod" value="none" checked={paymentMethod === 'none'} onChange={(e) => setPaymentMethod(e.target.value)} /> Checkout request only</label><label><input type="radio" name="paymentMethod" value="chapa" checked={paymentMethod === 'chapa'} onChange={(e) => setPaymentMethod(e.target.value)} /> Pay with Chapa</label></div>{paymentMethod === 'chapa' ? <p className="form-hint">You will be redirected to Chapa for secure payment.</p> : null}</div><div className="cart-summary__row"><span>Subtotal</span><span>{subtotal} ETB</span></div><div className="cart-summary__row"><span>Delivery</span><span>{delivery} ETB</span></div><div className="cart-summary__row cart-summary__row--total"><span>Total price</span><span>{total} ETB</span></div><button type="button" className="btn btn--primary btn--block cart-checkout-spacer" disabled={checkoutLoading || cartStatus === 'waiting' || cartItems.length === 0} onClick={handleCheckout}>{checkoutLoading ? 'Processing' : 'Checkout'}</button></aside>
+        <aside className="cart-summary"><h2>Order summary</h2><div className="form-group"><label>Payment method</label><div className="radio-group"><label><input type="radio" name="paymentMethod" value="none" checked={paymentMethod === 'none'} onChange={(e) => setPaymentMethod(e.target.value)} /> Checkout request only</label><label><input type="radio" name="paymentMethod" value="chapa" checked={paymentMethod === 'chapa'} onChange={(e) => setPaymentMethod(e.target.value)} /> Pay with Chapa</label></div>{paymentMethod === 'chapa' ? <p className="form-hint">You will be redirected to Chapa for secure payment.</p> : null}</div><FileInput id="receipt-photo" label="Receipt photo" required fileName={receiptFile?.name} onChange={setReceiptFile} hint="Upload a clear payment or order receipt photo before checkout." /><div className="cart-summary__row"><span>Subtotal</span><span>{subtotal} ETB</span></div><div className="cart-summary__row"><span>Delivery</span><span>{delivery} ETB</span></div><div className="cart-summary__row cart-summary__row--total"><span>Total price</span><span>{total} ETB</span></div><button type="button" className="btn btn--primary btn--block cart-checkout-spacer" disabled={checkoutLoading || cartStatus === 'waiting' || cartItems.length === 0 || !receiptFile} onClick={handleCheckout}>{checkoutLoading ? 'Processing' : 'Checkout'}</button></aside>
       </div>
       {orderHistory ? (
         <section className="form-panel cart-history">
@@ -345,7 +348,16 @@ function PaymentCallback() {
 const fallbackProfileImage = 'https://cdn-icons-png.flaticon.com/512/149/149071.png'
 const profileImageSrc = (src) => {
   if (!src) return fallbackProfileImage
-  if (/^https?:\/\//i.test(src) || src.startsWith('/')) return src
+  if (/^https?:\/\//i.test(src)) {
+    try {
+      const url = new URL(src)
+      if (url.pathname.startsWith('/uploads/')) return url.pathname
+    } catch {
+      return src
+    }
+    return src
+  }
+  if (src.startsWith('/')) return src
   return `/${src}`
 }
 
@@ -481,6 +493,16 @@ function DashboardHome({ inventory, orders, weeklyTransactions }) {
   const approvedOrders = orders.filter((o) => o.status === 'approved').length
   const declinedOrders = orders.filter((o) => o.status === 'rejected').length
   const weeklyTransactionTotal = weeklyTransactions.reduce((sum, tx) => sum + Number(tx.amount || 0), 0)
+  const now = new Date()
+  const soon = new Date()
+  soon.setDate(soon.getDate() + 30)
+  const expiringMedicines = inventory
+    .filter((m) => {
+      if (!m.expiry) return false
+      const expiry = new Date(m.expiry)
+      return !Number.isNaN(expiry.getTime()) && expiry <= soon
+    })
+    .sort((a, b) => new Date(a.expiry) - new Date(b.expiry))
   return (
     <>
       <h1 className="dash-title">Dashboard</h1>
@@ -488,6 +510,12 @@ function DashboardHome({ inventory, orders, weeklyTransactions }) {
       <section className="form-panel form-panel--full cart-history">
         <h2>This week transaction history</h2>
         <TransactionList transactions={weeklyTransactions} />
+      </section>
+      <section className="form-panel form-panel--full cart-history">
+        <h2>Expiry alerts</h2>
+        {!expiringMedicines.length ? <p className="form-hint">No medicines expiring in the next 30 days.</p> : (
+          <div className="table-scroll"><table className="data-table"><thead><tr><th>Medicine</th><th>Quantity</th><th>Expiry date</th><th>Status</th></tr></thead><tbody>{expiringMedicines.map((m) => { const expiry = new Date(m.expiry); const expired = expiry < now; return <tr key={m._id || m.id}><th scope="row">{m.name}</th><td>{m.quantity}</td><td>{m.expiry}</td><td>{expired ? 'Expired' : 'Close to expiry'}</td></tr> })}</tbody></table></div>
+        )}
       </section>
     </>
   )
@@ -523,7 +551,7 @@ function PharmacyOrders({ orders, onApprove, onReject }) {
       <h1 className="dash-title">Orders</h1>
       {pendingOrdersCount > 0 ? <p className="form-hint">New orders waiting: {pendingOrdersCount}</p> : null}
       {!visibleOrders.length ? <p className="form-hint">No orders to show.</p> : null}
-      <div className="card-grid card-grid--medicines">{visibleOrders.map((o) => { const hasPendingItems = o.items.some((item) => item.status === 'pending'); return <article className="form-panel pharmacy-order-card" key={o.id}><div className="pharmacy-order-card__top"><h2>Order #{String(o.id).slice(-6)}</h2>{!hasPendingItems ? <button type="button" className="pharmacy-order-card__close" aria-label="Remove old order" onClick={() => dismissOrder(o.id)}>x</button> : null}</div><p className="form-hint">Status: {o.status}</p>{o.items.map((i) => <p key={`${i.medicineId}-${i.status}`}>{i.medicineName} · Qty {i.quantity} · {i.status}</p>)}{hasPendingItems ? <div className="table-actions"><button className="btn btn--primary btn--sm" disabled={busy === o.id} onClick={() => run(onApprove, o.id)}>Approve</button><button className="btn btn--danger btn--sm btn--danger-solid" disabled={busy === o.id} onClick={() => run(onReject, o.id)}>Decline</button></div> : null}</article> })}</div>
+      <div className="card-grid card-grid--medicines">{visibleOrders.map((o) => { const hasPendingItems = o.items.some((item) => item.status === 'pending'); return <article className="form-panel pharmacy-order-card" key={o.id}><div className="pharmacy-order-card__top"><h2>Order #{String(o.id).slice(-6)}</h2>{!hasPendingItems ? <button type="button" className="pharmacy-order-card__close" aria-label="Remove old order" onClick={() => dismissOrder(o.id)}>x</button> : null}</div><p className="form-hint">Status: {o.status}</p>{o.receiptImage ? <a className="btn btn--outline btn--sm" href={o.receiptImage} target="_blank" rel="noreferrer">View receipt</a> : null}{o.items.map((i) => <p key={`${i.medicineId}-${i.status}`}>{i.medicineName} · Qty {i.quantity} · {i.status}</p>)}{hasPendingItems ? <div className="table-actions"><button className="btn btn--primary btn--sm" disabled={busy === o.id} onClick={() => run(onApprove, o.id)}>Approve</button><button className="btn btn--danger btn--sm btn--danger-solid" disabled={busy === o.id} onClick={() => run(onReject, o.id)}>Decline</button></div> : null}</article> })}</div>
     </>
   )
 }
@@ -658,7 +686,6 @@ function AdminPage() {
         </div>
         <div className="table-actions admin-toolbar">
           <button type="button" className="btn btn--outline btn--sm" disabled={loading} onClick={load}>Reload</button>
-          <Link to="/" className="btn btn--outline btn--sm">Public site</Link>
           <button type="button" className="btn btn--danger btn--sm" onClick={async () => { await logout(); nav('/login') }}>Sign out</button>
         </div>
         {loading ? <p className="form-hint">Loading…</p> : null}

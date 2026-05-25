@@ -58,7 +58,19 @@ export const medicineApi = {
 
 export const orderApi = {
     listPharmacyTransactions: (token, period = '') => apiFetch(`/orders/pharmacy/transactions${period ? `?period=${period}` : ''}`, { token }),
-  checkout: (payload, token) => apiFetch('/orders', { method: 'POST', body: payload, token }),
+  checkout: (payload, token) => {
+    if (payload?.receiptFile) {
+      const formData = new FormData()
+      formData.append('items', JSON.stringify(payload.items || []))
+      formData.append('subtotal', String(payload.subtotal || 0))
+      formData.append('delivery', String(payload.delivery || 0))
+      formData.append('total', String(payload.total || 0))
+      formData.append('paymentMethod', payload.paymentMethod || 'none')
+      formData.append('receiptImage', payload.receiptFile)
+      return apiFetchMultipart('/orders', { method: 'POST', formData, token })
+    }
+    return apiFetch('/orders', { method: 'POST', body: payload, token })
+  },
   verifyChapaPayment: (payload, token) => apiFetch('/orders/payment/chapa/verify', { method: 'POST', body: payload, token }),
   listMine: (token) => apiFetch('/orders/mine', { token }),
   listPharmacy: (token) => apiFetch('/orders/pharmacy', { token }),

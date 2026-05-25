@@ -1,6 +1,8 @@
 const Order = require('../models/Order')
 const Medicine = require('../models/Medicine')
 const Transaction = require('../models/Transaction')
+const { filePublicUrl } = require('../utils/publicFileUrl')
+const { sanitizeUploadPath } = require('../utils/sanitizeUploadPath')
 
 const CHAPA_API_BASE = 'https://api.chapa.co/v1'
 const recalc = (items) => {
@@ -11,6 +13,16 @@ const recalc = (items) => {
   return 'pending'
 }
 const belongs = (item, id, name) => (item.pharmacyId && String(item.pharmacyId) === String(id)) || item.pharmacyName === name
+const img = (req, p) => filePublicUrl(req, sanitizeUploadPath(p))
+const bodyJson = (value, fallback) => {
+  if (value == null) return fallback
+  if (typeof value !== 'string') return value
+  try {
+    return JSON.parse(value)
+  } catch {
+    return fallback
+  }
+}
 const weekFilter = (period) => {
   if (period !== 'week') return {}
   const startOfWeek = new Date()
@@ -90,8 +102,11 @@ const updateOrderTransactions = async (order) => {
 
 exports.createOrder = async (req, res) => {
   const paymentMethod = req.body.paymentMethod === 'chapa' ? 'chapa' : 'none'
+  const requestedItems = bodyJson(req.body.items, [])
+  const receiptPath = req.file ? sanitizeUploadPath(`/uploads/${req.file.filename}`) : ''
+  if (!receiptPath) return res.status(400).json({ message: 'Please upload a receipt photo before checkout.' })
   const final = []
-  for (const raw of req.body.items || []) {
+  for (const raw of requestedItems || []) {
     const qty = Number(raw.quantity)
     const med = await Medicine.findById(raw.medicineId)
     if (!med) return res.status(404).json({ message: 'Medicine not found' })
@@ -101,7 +116,7 @@ exports.createOrder = async (req, res) => {
   const subtotal = final.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const delivery = final.length ? 50 : 0
   const total = subtotal + delivery
-  const order = await Order.create({ customer: req.user._id, items: final, subtotal, delivery, total, status: 'pending', paymentMethod, paymentStatus: 'pending' })
+  const order = await Order.create({ customer: req.user._id, items: final, subtotal, delivery, total, status: 'pending', paymentMethod, paymentStatus: 'pending', receiptImage: receiptPath })
   if (paymentMethod === 'chapa') {
     try {
       const chapa = await initChapaTransaction(order, req.user)
@@ -146,12 +161,15 @@ exports.verifyChapaPayment = async (req, res) => {
   res.json({ status: 'failed', paymentStatus: order.paymentStatus, order, result: body })
 }
 
-exports.getMyOrders = async (req, res) => res.json({ orders: await Order.find({ customer: req.user._id }).sort({ createdAt: -1 }) })
+exports.getMyOrders = async (req, res) => {
+  const orders = await Order.find({ customer: req.user._id }).sort({ createdAt: -1 })
+  res.json({ orders: orders.map((order) => ({ ...order.toObject(), receiptImage: img(req, order.receiptImage) })) })
+}
 
 exports.getPharmacyOrders = async (req, res) => {
   const id = req.user._id
   const orders = await Order.find({ status: { $ne: 'cancelled' }, $or: [{ 'items.pharmacyId': id }, { 'items.pharmacyName': req.user.name }] }).populate('customer', 'name email').sort({ createdAt: -1 })
-  res.json({ orders: orders.map((order) => ({ id: order._id, customer: order.customer, createdAt: order.createdAt, status: order.status, items: order.items.filter((item) => belongs(item, id, req.user.name)) })) })
+  res.json({ orders: orders.map((order) => ({ id: order._id, customer: order.customer, createdAt: order.createdAt, status: order.status, receiptImage: img(req, order.receiptImage), items: order.items.filter((item) => belongs(item, id, req.user.name)) })) })
 }
 
 exports.cancelCustomerOrder = async (req, res) => {

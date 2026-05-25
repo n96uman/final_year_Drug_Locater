@@ -83,16 +83,20 @@ export function CartProvider({ children }) {
     setCartItems((p) => p.filter((x) => getId(x) !== id))
   }
 
-  const checkout = async (paymentMethod = 'none') => {
+  const checkout = async (paymentMethod = 'none', receiptFile = null) => {
     if (cartStatus === 'waiting') return { ok: false }
     if (!token || !currentUser || currentUser.role !== 'customer' || cartItems.length === 0) return { ok: false }
+    if (!receiptFile) {
+      show('Please upload a receipt photo before checkout.')
+      return { ok: false }
+    }
     setCheckoutLoading(true)
     try {
       const subtotal = cartItems.reduce((s, i) => s + i.price * i.quantity, 0)
       const delivery = 50
       const total = subtotal + delivery
       const items = cartItems.map((i) => ({ medicineId: getId(i), medicineName: i.name, pharmacyName: i.pharmacyName, price: i.price, quantity: i.quantity }))
-      const r = await orderApi.checkout({ items, subtotal, delivery, total, paymentMethod }, token)
+      const r = await orderApi.checkout({ items, subtotal, delivery, total, paymentMethod, receiptFile }, token)
       setCartStatus('waiting')
       setPendingOrderId(r.order?._id || r.order?.id || null)
       setOrderHistory(countOrderItems(r.order))

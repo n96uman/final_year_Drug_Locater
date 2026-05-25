@@ -20,7 +20,7 @@ function extFromMime(mimetype) {
 }
 
 function safeImageFilename(fieldname, mimetype) {
-  const prefix = fieldname === 'licenseImage' ? 'license' : 'profile'
+  const prefix = fieldname === 'licenseImage' ? 'license' : fieldname === 'receiptImage' ? 'receipt' : 'profile'
   const ext = extFromMime(mimetype)
   return `${prefix}-${Date.now()}${ext}`
 }
@@ -37,6 +37,7 @@ const imageMulter = multer({
 
 exports.uploadProfileImage = imageMulter
 exports.uploadLicenseImage = imageMulter.single('licenseImage')
+exports.uploadReceiptImage = imageMulter.single('receiptImage')
 exports.uploadRegisterFiles = imageMulter.fields([
   { name: 'profileImage', maxCount: 1 },
   { name: 'licenseImage', maxCount: 1 },
