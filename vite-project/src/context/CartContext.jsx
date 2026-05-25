@@ -83,9 +83,13 @@ export function CartProvider({ children }) {
     setCartItems((p) => p.filter((x) => getId(x) !== id))
   }
 
-  const checkout = async (paymentMethod = 'none', receiptFile = null) => {
+  const checkout = async (paymentMethod = 'none', receiptFile = null, customerPhone = '') => {
     if (cartStatus === 'waiting') return { ok: false }
     if (!token || !currentUser || currentUser.role !== 'customer' || cartItems.length === 0) return { ok: false }
+    if (!customerPhone.trim()) {
+      show('Please enter your phone number before checkout.')
+      return { ok: false }
+    }
     if (!receiptFile) {
       show('Please upload a receipt photo before checkout.')
       return { ok: false }
@@ -96,14 +100,14 @@ export function CartProvider({ children }) {
       const delivery = 50
       const total = subtotal + delivery
       const items = cartItems.map((i) => ({ medicineId: getId(i), medicineName: i.name, pharmacyName: i.pharmacyName, price: i.price, quantity: i.quantity }))
-      const r = await orderApi.checkout({ items, subtotal, delivery, total, paymentMethod, receiptFile }, token)
+      const r = await orderApi.checkout({ items, subtotal, delivery, total, paymentMethod, receiptFile, customerPhone: customerPhone.trim() }, token)
       setCartStatus('waiting')
       setPendingOrderId(r.order?._id || r.order?.id || null)
       setOrderHistory(countOrderItems(r.order))
       if (r.checkoutUrl) {
         window.location.assign(r.checkoutUrl)
       }
-      show(paymentMethod === 'chapa' ? 'Redirecting to Chapa for payment...' : 'Checkout submitted. Status changed to waiting for pharmacy approval.')
+      show(paymentMethod === 'chapa' ? 'Redirecting to Chapa for payment...' : paymentMethod === 'telebirr' ? 'Telebirr order submitted. Keep your Telebirr password private.' : 'Checkout submitted. Status changed to waiting for pharmacy approval.')
       return { ok: true }
     } catch (e) {
       show(e.message)
