@@ -145,9 +145,8 @@ function Pharmacies({ medicines, loading, error }) {
 function CartPage() {
   const { token } = useAuth()
   const { cartItems, cartStatus, orderHistory, removeFromCart, updateQuantity, checkout, checkoutLoading, cancelPendingOrder, cancelLoading, checkPendingOrderStatus, subtotal, delivery, total } = useCart()
-  const [paymentMethod, setPaymentMethod] = useState('telebirr')
+  const [useChapa, setUseChapa] = useState(false)
   const [receiptFile, setReceiptFile] = useState(null)
-  const [customerPhone, setCustomerPhone] = useState('')
   const [transactions, setTransactions] = useState([])
   const [transactionsLoading, setTransactionsLoading] = useState(false)
   const [transactionsError, setTransactionsError] = useState('')
@@ -168,14 +167,10 @@ function CartPage() {
   }, [token, cartStatus, orderHistory?.updatedAt])
 
   const handleCheckout = async () => {
-    if (!customerPhone.trim()) return
     if (!receiptFile) return
-    if (paymentMethod === 'chapa' && !window.confirm('Continue to Chapa test payment?')) return
-    const result = await checkout(paymentMethod, receiptFile, customerPhone)
-    if (result.ok) {
-      setReceiptFile(null)
-      setCustomerPhone('')
-    }
+    if (useChapa && !window.confirm('Continue to Chapa test payment?')) return
+    const result = await checkout(useChapa ? 'chapa' : 'none', receiptFile)
+    if (result.ok) setReceiptFile(null)
   }
   const handleCancelWaitingOrder = async () => {
     if (!window.confirm('Cancel this waiting order? You can edit your cart again after cancelling.')) return
@@ -194,23 +189,17 @@ function CartPage() {
         <aside className="cart-summary">
           <h2>Order summary</h2>
           <div className="form-group">
-            <label>Payment method</label>
-            <div className="radio-group">
-              <label><input type="radio" name="paymentMethod" value="chapa" checked={paymentMethod === 'chapa'} onChange={(e) => setPaymentMethod(e.target.value)} /> Chapa</label>
-              <label><input type="radio" name="paymentMethod" value="telebirr" checked={paymentMethod === 'telebirr'} onChange={(e) => setPaymentMethod(e.target.value)} /> Telebirr</label>
-              <label><input type="radio" name="paymentMethod" value="none" checked={paymentMethod === 'none'} onChange={(e) => setPaymentMethod(e.target.value)} /> Checkout</label>
-            </div>
-            {paymentMethod === 'chapa' ? <p className="form-hint">You will be redirected to Chapa for secure payment.</p> : paymentMethod === 'telebirr' ? <p className="form-hint">You will pay with Telebirr using your phone number. Never share your Telebirr password here.</p> : <p className="form-hint">Send the order to the pharmacy for approval.</p>}
-          </div>
-          <div className="form-group">
-            <label htmlFor="checkout-phone">Phone number</label>
-            <input id="checkout-phone" type="tel" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="09..." required />
+            <label className="terms-block__check" htmlFor="use-chapa">
+              <input id="use-chapa" type="checkbox" checked={useChapa} onChange={(e) => setUseChapa(e.target.checked)} />
+              <span>Chapa payment {useChapa ? 'on' : 'off'}</span>
+            </label>
+            {useChapa ? <p className="form-hint">You will be redirected to Chapa for secure payment.</p> : <p className="form-hint">Chapa is off. This will be sent as a checkout request only.</p>}
           </div>
           <FileInput id="receipt-photo" label="Receipt photo" required fileName={receiptFile?.name} onChange={setReceiptFile} hint="Upload a clear payment or order receipt photo before checkout." />
           <div className="cart-summary__row"><span>Subtotal</span><span>{subtotal} ETB</span></div>
           <div className="cart-summary__row"><span>Delivery</span><span>{delivery} ETB</span></div>
           <div className="cart-summary__row cart-summary__row--total"><span>Total price</span><span>{total} ETB</span></div>
-          <button type="button" className="btn btn--primary btn--block cart-checkout-spacer" disabled={checkoutLoading || cartStatus === 'waiting' || cartItems.length === 0 || !receiptFile || !customerPhone.trim()} onClick={handleCheckout}>{checkoutLoading ? 'Processing' : paymentMethod === 'chapa' ? 'Pay with Chapa' : paymentMethod === 'telebirr' ? 'Pay with Telebirr' : 'Checkout'}</button>
+          <button type="button" className="btn btn--primary btn--block cart-checkout-spacer" disabled={checkoutLoading || cartStatus === 'waiting' || cartItems.length === 0 || !receiptFile} onClick={handleCheckout}>{checkoutLoading ? 'Processing' : useChapa ? 'Pay with Chapa' : 'Checkout'}</button>
         </aside>
       </div>
       {orderHistory ? (
@@ -393,8 +382,8 @@ function TermsPage() {
 }
 
 const fallbackProfileImage = 'https://cdn-icons-png.flaticon.com/512/149/149071.png'
-const profileImageSrc = (src) => {
-  if (!src) return fallbackProfileImage
+const uploadImageSrc = (src) => {
+  if (!src) return ''
   if (/^https?:\/\//i.test(src)) {
     try {
       const url = new URL(src)
@@ -407,6 +396,7 @@ const profileImageSrc = (src) => {
   if (src.startsWith('/')) return src
   return `/${src}`
 }
+const profileImageSrc = (src) => uploadImageSrc(src) || fallbackProfileImage
 
 function Profile() {
   const { currentUser, authLoading, refreshProfile, updateProfile, updatePharmacyLicense, logout } = useAuth()
@@ -587,10 +577,11 @@ function Inventory({ inventory, onUpdate, onDelete }) {
 }
 
 function OrderReceipt({ src, orderId }) {
-  if (!src) return <p className="form-hint">No receipt uploaded for this order.</p>
+  const imageSrc = uploadImageSrc(src)
+  if (!imageSrc) return <p className="form-hint">No receipt uploaded for this order.</p>
   return (
-    <a className="order-receipt" href={src} target="_blank" rel="noreferrer">
-      <img src={src} alt={`Receipt for order ${String(orderId).slice(-6)}`} loading="lazy" />
+    <a className="order-receipt" href={imageSrc} target="_blank" rel="noreferrer">
+      <img src={imageSrc} alt={`Receipt for order ${String(orderId).slice(-6)}`} loading="lazy" />
       <span>View receipt</span>
     </a>
   )
@@ -608,7 +599,7 @@ function PharmacyOrders({ orders, onApprove, onReject }) {
       <h1 className="dash-title">Orders</h1>
       {pendingOrdersCount > 0 ? <p className="form-hint">New orders waiting: {pendingOrdersCount}</p> : null}
       {!visibleOrders.length ? <p className="form-hint">No orders to show.</p> : null}
-      <div className="card-grid card-grid--medicines">{visibleOrders.map((o) => { const hasPendingItems = o.items.some((item) => item.status === 'pending'); return <article className="form-panel pharmacy-order-card" key={o.id}><div className="pharmacy-order-card__top"><h2>Order #{String(o.id).slice(-6)}</h2>{!hasPendingItems ? <button type="button" className="pharmacy-order-card__close" aria-label="Remove old order" onClick={() => dismissOrder(o.id)}>x</button> : null}</div><p className="form-hint">Status: {o.status}</p><p className="form-hint">Payment: {o.paymentMethod === 'telebirr' ? 'Telebirr' : o.paymentMethod === 'chapa' ? 'Chapa' : 'Checkout'}</p>{o.customerPhone ? <p className="form-hint">Phone: {o.customerPhone}</p> : null}<OrderReceipt src={o.receiptImage} orderId={o.id} />{o.items.map((i) => <p key={`${i.medicineId}-${i.status}`}>{i.medicineName} - Qty {i.quantity} - {i.status}</p>)}{hasPendingItems ? <div className="table-actions"><button className="btn btn--primary btn--sm" disabled={busy === o.id} onClick={() => run(onApprove, o.id)}>Approve</button><button className="btn btn--danger btn--sm btn--danger-solid" disabled={busy === o.id} onClick={() => run(onReject, o.id)}>Decline</button></div> : null}</article> })}</div>
+      <div className="card-grid card-grid--medicines">{visibleOrders.map((o) => { const hasPendingItems = o.items.some((item) => item.status === 'pending'); return <article className="form-panel pharmacy-order-card" key={o.id}><div className="pharmacy-order-card__top"><h2>Order #{String(o.id).slice(-6)}</h2>{!hasPendingItems ? <button type="button" className="pharmacy-order-card__close" aria-label="Remove old order" onClick={() => dismissOrder(o.id)}>x</button> : null}</div><p className="form-hint">Status: {o.status}</p><p className="form-hint">Payment: {o.paymentMethod === 'chapa' ? 'Chapa' : 'Checkout'}</p><OrderReceipt src={o.receiptImage} orderId={o.id} />{o.items.map((i) => <p key={`${i.medicineId}-${i.status}`}>{i.medicineName} - Qty {i.quantity} - {i.status}</p>)}{hasPendingItems ? <div className="table-actions"><button className="btn btn--primary btn--sm" disabled={busy === o.id} onClick={() => run(onApprove, o.id)}>Approve</button><button className="btn btn--danger btn--sm btn--danger-solid" disabled={busy === o.id} onClick={() => run(onReject, o.id)}>Decline</button></div> : null}</article> })}</div>
     </>
   )
 }

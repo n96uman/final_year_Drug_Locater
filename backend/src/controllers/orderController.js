@@ -101,11 +101,9 @@ const updateOrderTransactions = async (order) => {
 }
 
 exports.createOrder = async (req, res) => {
-  const paymentMethod = req.body.paymentMethod === 'chapa' ? 'chapa' : req.body.paymentMethod === 'telebirr' ? 'telebirr' : 'none'
+  const paymentMethod = req.body.paymentMethod === 'chapa' ? 'chapa' : 'none'
   const requestedItems = bodyJson(req.body.items, [])
-  const customerPhone = String(req.body.customerPhone || '').trim()
   const receiptPath = req.file ? sanitizeUploadPath(`/uploads/${req.file.filename}`) : ''
-  if (!customerPhone) return res.status(400).json({ message: 'Please enter your phone number before checkout.' })
   if (!receiptPath) return res.status(400).json({ message: 'Please upload a receipt photo before checkout.' })
   const final = []
   for (const raw of requestedItems || []) {
@@ -118,7 +116,7 @@ exports.createOrder = async (req, res) => {
   const subtotal = final.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const delivery = final.length ? 50 : 0
   const total = subtotal + delivery
-  const order = await Order.create({ customer: req.user._id, items: final, subtotal, delivery, total, status: 'pending', paymentMethod, paymentStatus: 'pending', receiptImage: receiptPath, customerPhone })
+  const order = await Order.create({ customer: req.user._id, items: final, subtotal, delivery, total, status: 'pending', paymentMethod, paymentStatus: 'pending', receiptImage: receiptPath })
   if (paymentMethod === 'chapa') {
     try {
       const chapa = await initChapaTransaction(order, req.user)
@@ -129,7 +127,7 @@ exports.createOrder = async (req, res) => {
       throw e
     }
   }
-  res.status(201).json({ order, message: paymentMethod === 'telebirr' ? 'Order placed. The pharmacy will use your phone number for Telebirr payment confirmation.' : 'Order placed and waiting pharmacy approval.' })
+  res.status(201).json({ order, message: 'Order placed and waiting pharmacy approval.' })
 }
 
 exports.verifyChapaPayment = async (req, res) => {
@@ -171,7 +169,7 @@ exports.getMyOrders = async (req, res) => {
 exports.getPharmacyOrders = async (req, res) => {
   const id = req.user._id
   const orders = await Order.find({ status: { $ne: 'cancelled' }, $or: [{ 'items.pharmacyId': id }, { 'items.pharmacyName': req.user.name }] }).populate('customer', 'name email').sort({ createdAt: -1 })
-  res.json({ orders: orders.map((order) => ({ id: order._id, customer: order.customer, createdAt: order.createdAt, status: order.status, paymentMethod: order.paymentMethod, customerPhone: order.customerPhone, receiptImage: img(req, order.receiptImage), items: order.items.filter((item) => belongs(item, id, req.user.name)) })) })
+  res.json({ orders: orders.map((order) => ({ id: order._id, customer: order.customer, createdAt: order.createdAt, status: order.status, paymentMethod: order.paymentMethod, receiptImage: img(req, order.receiptImage), items: order.items.filter((item) => belongs(item, id, req.user.name)) })) })
 }
 
 exports.cancelCustomerOrder = async (req, res) => {

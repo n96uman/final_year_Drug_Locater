@@ -66,7 +66,6 @@ export const orderApi = {
       formData.append('delivery', String(payload.delivery || 0))
       formData.append('total', String(payload.total || 0))
       formData.append('paymentMethod', payload.paymentMethod || 'none')
-      formData.append('customerPhone', payload.customerPhone || '')
       formData.append('receiptImage', payload.receiptFile)
       return apiFetchMultipart('/orders', { method: 'POST', formData, token })
     }
