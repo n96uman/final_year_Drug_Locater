@@ -63,7 +63,6 @@ export default function Navbar() {
             <li><NavLink to="/search" onClick={closeMainNav}>Search Medicine</NavLink></li>
             <li><NavLink to="/pharmacies" onClick={closeMainNav}>Pharmacies</NavLink></li>
             {currentUser?.role === 'customer' ? <li><NavLink to="/cart" onClick={closeMainNav}>Cart</NavLink></li> : null}
-            {currentUser?.role === 'customer' ? <li><NavLink to="/transactions/all" onClick={closeMainNav}>History</NavLink></li> : null}
             {currentUser?.role === 'customer' ? <li><NavLink to="/profile" onClick={closeMainNav}>Profile</NavLink></li> : null}
             {currentUser?.role === 'pharmacy' && currentUser?.pharmacyApprovalStatus !== 'approved' ? (
               <li><NavLink to="/pharmacy-pending" onClick={closeMainNav}>Account status</NavLink></li>
