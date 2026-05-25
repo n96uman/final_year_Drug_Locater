@@ -4,8 +4,6 @@ const Transaction = require('../models/Transaction')
 const { filePublicUrl } = require('../utils/publicFileUrl')
 const { sanitizeUploadPath } = require('../utils/sanitizeUploadPath')
 
-const CHAPA_API_BASE = 'https://api.chapa.co/v1'
-const isChapaTestMode = () => process.env.CHAPA_TEST_MODE !== 'false' && process.env.NODE_ENV !== 'production'
 const recalc = (items) => {
   const statuses = items.map((i) => i.status)
   if (statuses.every((x) => x === 'approved')) return 'approved'
@@ -30,66 +28,6 @@ const weekFilter = (period) => {
   startOfWeek.setHours(0, 0, 0, 0)
   startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay())
   return { createdAt: { $gte: startOfWeek } }
-}
-
-const getNameParts = (name = '') => {
-  const parts = String(name).trim().split(' ').filter(Boolean)
-  return { firstName: parts[0] || 'Customer', lastName: parts.slice(1).join(' ') || 'User' }
-}
-
-const initChapaTransaction = async (order, user) => {
-  const secretKey = process.env.CHAPA_SECRET_KEY
-  if (!secretKey && !isChapaTestMode()) throw new Error('Chapa secret key is not configured. Add CHAPA_SECRET_KEY to backend/.env and restart the backend.')
-  const { firstName, lastName } = getNameParts(user.name || user.email)
-  const callbackUrl = process.env.CHAPA_RETURN_URL || process.env.CHAPA_CALLBACK_URL || 'http://localhost:5173/payment/callback'
-  const txRef = `order_${order._id}_${Date.now()}`
-  if (!secretKey && isChapaTestMode()) {
-    order.paymentMethod = 'chapa'
-    order.paymentReference = txRef
-    order.paymentStatus = 'paid'
-    await order.save()
-    return { order, checkoutUrl: '', testPayment: true }
-  }
-  const payload = {
-    amount: Number(order.total),
-    currency: 'ETB',
-    email: user.email,
-    first_name: firstName,
-    last_name: lastName,
-    tx_ref: txRef,
-    callback_url: callbackUrl,
-    return_url: callbackUrl,
-    title: `E-Pharmacy order ${order._id}`,
-    description: `Payment for order ${order._id}`,
-  }
-  let response
-  let body
-  try {
-    response = await fetch(`${CHAPA_API_BASE}/transaction/initialize`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${secretKey}`,
-      },
-      body: JSON.stringify(payload),
-    })
-    body = await response.json()
-  } catch (e) {
-    if (!isChapaTestMode()) throw e
-    order.paymentMethod = 'chapa'
-    order.paymentReference = txRef
-    order.paymentStatus = 'paid'
-    await order.save()
-    return { order, checkoutUrl: '', testPayment: true }
-  }
-  if (!body || body.status !== 'success' || !body.data?.checkout_url) {
-    throw new Error(body?.message || 'Chapa payment initialization failed.')
-  }
-  order.paymentMethod = 'chapa'
-  order.paymentReference = txRef
-  order.paymentStatus = 'pending'
-  await order.save()
-  return { order, checkoutUrl: body.data.checkout_url, testPayment: false }
 }
 
 const createPharmacyTransactions = async (order) => {
@@ -123,7 +61,13 @@ exports.createOrder = async (req, res) => {
   const paymentMethod = req.body.paymentMethod === 'chapa' ? 'chapa' : 'none'
   const requestedItems = bodyJson(req.body.items, [])
   const receiptPath = req.file ? sanitizeUploadPath(`/uploads/${req.file.filename}`) : ''
-  if (!receiptPath) return res.status(400).json({ message: 'Please upload a receipt photo before checkout.' })
+  const chapaAccount = String(req.body.chapaAccount || '').trim()
+  const chapaDemoPassword = String(req.body.chapaDemoPassword || '').trim()
+
+  if (paymentMethod !== 'chapa' && !receiptPath) return res.status(400).json({ message: 'Please upload a receipt photo before checkout.' })
+  if (paymentMethod === 'chapa' && !chapaAccount) return res.status(400).json({ message: 'Enter a Chapa demo phone or account number.' })
+  if (paymentMethod === 'chapa' && !chapaDemoPassword) return res.status(400).json({ message: 'Enter any demo password for the Chapa test screen. Do not use a real password.' })
+
   const final = []
   for (const raw of requestedItems || []) {
     const qty = Number(raw.quantity)
@@ -135,49 +79,31 @@ exports.createOrder = async (req, res) => {
   const subtotal = final.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const delivery = final.length ? 50 : 0
   const total = subtotal + delivery
-  const order = await Order.create({ customer: req.user._id, items: final, subtotal, delivery, total, status: 'pending', paymentMethod, paymentStatus: 'pending', receiptImage: receiptPath })
+  const order = await Order.create({
+    customer: req.user._id,
+    items: final,
+    subtotal,
+    delivery,
+    total,
+    status: 'pending',
+    paymentMethod,
+    paymentStatus: paymentMethod === 'chapa' ? 'paid' : 'pending',
+    paymentReference: paymentMethod === 'chapa' ? `demo_chapa_${Date.now()}` : undefined,
+    receiptImage: receiptPath,
+    chapaAccount: paymentMethod === 'chapa' ? chapaAccount : undefined,
+  })
   if (paymentMethod === 'chapa') {
-    try {
-      const chapa = await initChapaTransaction(order, req.user)
-      await createPharmacyTransactions(chapa.order)
-      return res.status(201).json({ order: chapa.order, checkoutUrl: chapa.checkoutUrl, testPayment: chapa.testPayment, message: chapa.testPayment ? 'Chapa test payment approved. Order is waiting for pharmacy approval.' : 'Order created. Redirecting to Chapa for payment.' })
-    } catch (e) {
-      await Order.deleteOne({ _id: order._id })
-      throw e
-    }
+    await createPharmacyTransactions(order)
+    return res.status(201).json({ order, testPayment: true, message: 'Chapa demo payment accepted. Order is waiting for pharmacy approval.' })
   }
   res.status(201).json({ order, message: 'Order placed and waiting pharmacy approval.' })
 }
 
 exports.verifyChapaPayment = async (req, res) => {
   const { txRef } = req.body
-  if (!txRef) return res.status(400).json({ message: 'txRef is required.' })
-  const order = await Order.findOne({ paymentReference: txRef, customer: req.user._id })
-  if (!order) return res.status(404).json({ message: 'Payment order not found.' })
-  const secretKey = process.env.CHAPA_SECRET_KEY
-  if (!secretKey) return res.status(500).json({ message: 'Chapa secret key is not configured. Add CHAPA_SECRET_KEY to backend/.env and restart the backend.' })
-  const response = await fetch(`${CHAPA_API_BASE}/transaction/verify/${encodeURIComponent(txRef)}`, {
-    headers: {
-      Authorization: `Bearer ${secretKey}`,
-    },
-  })
-  const body = await response.json()
-  if (!body || body.status !== 'success') {
-    order.paymentStatus = 'failed'
-    await order.save()
-    await Transaction.updateMany({ order: order._id }, { status: 'refunded', updatedAt: new Date() })
-    return res.json({ status: 'failed', paymentStatus: order.paymentStatus, order, result: body })
-  }
-  if (body.data?.status === 'success') {
-    order.paymentStatus = 'paid'
-    await order.save()
-    await Transaction.updateMany({ order: order._id }, { status: 'pending', updatedAt: new Date() })
-    return res.json({ status: 'paid', paymentStatus: order.paymentStatus, order })
-  }
-  order.paymentStatus = 'failed'
-  await order.save()
-  await Transaction.updateMany({ order: order._id }, { status: 'refunded', updatedAt: new Date() })
-  res.json({ status: 'failed', paymentStatus: order.paymentStatus, order, result: body })
+  const order = txRef ? await Order.findOne({ paymentReference: txRef, customer: req.user._id }) : null
+  if (order) return res.json({ status: 'paid', paymentStatus: order.paymentStatus, order, testPayment: true })
+  res.json({ status: 'paid', paymentStatus: 'paid', testPayment: true, message: 'Chapa demo verification accepted.' })
 }
 
 exports.getMyOrders = async (req, res) => {
@@ -188,7 +114,7 @@ exports.getMyOrders = async (req, res) => {
 exports.getPharmacyOrders = async (req, res) => {
   const id = req.user._id
   const orders = await Order.find({ status: { $ne: 'cancelled' }, $or: [{ 'items.pharmacyId': id }, { 'items.pharmacyName': req.user.name }] }).populate('customer', 'name email').sort({ createdAt: -1 })
-  res.json({ orders: orders.map((order) => ({ id: order._id, customer: order.customer, createdAt: order.createdAt, status: order.status, paymentMethod: order.paymentMethod, receiptImage: img(req, order.receiptImage), items: order.items.filter((item) => belongs(item, id, req.user.name)) })) })
+  res.json({ orders: orders.map((order) => ({ id: order._id, customer: order.customer, createdAt: order.createdAt, status: order.status, paymentMethod: order.paymentMethod, paymentStatus: order.paymentStatus, chapaAccount: order.chapaAccount, receiptImage: img(req, order.receiptImage), items: order.items.filter((item) => belongs(item, id, req.user.name)) })) })
 }
 
 exports.cancelCustomerOrder = async (req, res) => {
@@ -202,7 +128,7 @@ exports.cancelCustomerOrder = async (req, res) => {
   if (order.paymentMethod === 'chapa') {
     await Transaction.updateMany({ order: order._id }, { status: 'refunded', updatedAt: new Date() })
   }
-  res.json({ message: order.paymentMethod === 'chapa' ? 'Order cancelled. Your Chapa test payment has been returned.' : 'Order cancelled.', order })
+  res.json({ message: order.paymentMethod === 'chapa' ? 'Order cancelled. Your Chapa demo payment has been returned.' : 'Order cancelled.', order })
 }
 
 exports.approvePharmacyOrder = async (req, res) => {

@@ -29,7 +29,7 @@ export const TERMS_SECTIONS = [
   {
     heading: '4. Payments',
     body: [
-      'The platform can support checkout requests and Chapa test payments when the backend is configured with a valid Chapa secret key.',
+      'The platform can support checkout requests and a local Chapa demo payment screen for testing. The demo does not connect to the real Chapa service.',
       'If Chapa is selected, the customer may be redirected to Chapa to complete payment. Payment verification depends on Chapa returning a valid payment reference.',
       'For cancelled, declined, or partially approved orders, refund handling and timing depend on the payment provider, pharmacy process, and test or production environment being used.',
     ],

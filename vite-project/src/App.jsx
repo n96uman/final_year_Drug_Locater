@@ -190,6 +190,8 @@ function CartPage() {
   const { cartItems, cartStatus, orderHistory, removeFromCart, updateQuantity, checkout, checkoutLoading, cancelPendingOrder, cancelLoading, checkPendingOrderStatus, subtotal, delivery, total } = useCart()
   const [useChapa, setUseChapa] = useState(false)
   const [receiptFile, setReceiptFile] = useState(null)
+  const [chapaAccount, setChapaAccount] = useState('')
+  const [chapaDemoPassword, setChapaDemoPassword] = useState('')
   const [transactions, setTransactions] = useState([])
   const [transactionsLoading, setTransactionsLoading] = useState(false)
   const [transactionsError, setTransactionsError] = useState('')
@@ -210,10 +212,13 @@ function CartPage() {
   }, [token, cartStatus, orderHistory?.updatedAt])
 
   const handleCheckout = async () => {
-    if (!receiptFile) return
-    if (useChapa && !window.confirm('Continue to Chapa test payment?')) return
-    const result = await checkout(useChapa ? 'chapa' : 'none', receiptFile)
-    if (result.ok) setReceiptFile(null)
+    if (!useChapa && !receiptFile) return
+    const result = await checkout(useChapa ? 'chapa' : 'none', receiptFile, { chapaAccount, chapaDemoPassword })
+    if (result.ok) {
+      setReceiptFile(null)
+      setChapaAccount('')
+      setChapaDemoPassword('')
+    }
   }
   const handleCancelWaitingOrder = async () => {
     if (!window.confirm('Cancel this waiting order? You can edit your cart again after cancelling.')) return
@@ -236,13 +241,27 @@ function CartPage() {
               <input id="use-chapa" type="checkbox" checked={useChapa} onChange={(e) => setUseChapa(e.target.checked)} />
               <span>Chapa payment {useChapa ? 'on' : 'off'}</span>
             </label>
-            {useChapa ? <p className="form-hint">You will be redirected to Chapa for secure payment.</p> : <p className="form-hint">Chapa is off. This will be sent as a checkout request only.</p>}
+            {useChapa ? <p className="form-hint">Chapa is demo-only. It does not connect to the real Chapa service.</p> : <p className="form-hint">Chapa is off. This will be sent as a checkout request only.</p>}
           </div>
-          <FileInput id="receipt-photo" label="Receipt photo" required fileName={receiptFile?.name} onChange={setReceiptFile} hint="Upload a clear payment or order receipt photo before checkout." />
+          {useChapa ? (
+            <>
+              <div className="form-group">
+                <label htmlFor="chapa-account">Chapa demo phone/account</label>
+                <input id="chapa-account" value={chapaAccount} onChange={(e) => setChapaAccount(e.target.value)} placeholder="09... or demo account number" required />
+              </div>
+              <div className="form-group">
+                <label htmlFor="chapa-demo-password">Demo password</label>
+                <input id="chapa-demo-password" type="password" value={chapaDemoPassword} onChange={(e) => setChapaDemoPassword(e.target.value)} placeholder="Any test value" required />
+                <p className="form-hint">For testing only. Do not enter a real Chapa password.</p>
+              </div>
+            </>
+          ) : (
+            <FileInput id="receipt-photo" label="Receipt photo" required fileName={receiptFile?.name} onChange={setReceiptFile} hint="Upload a clear payment or order receipt photo before checkout." />
+          )}
           <div className="cart-summary__row"><span>Subtotal</span><span>{subtotal} ETB</span></div>
           <div className="cart-summary__row"><span>Delivery</span><span>{delivery} ETB</span></div>
           <div className="cart-summary__row cart-summary__row--total"><span>Total price</span><span>{total} ETB</span></div>
-          <button type="button" className="btn btn--primary btn--block cart-checkout-spacer" disabled={checkoutLoading || cartStatus === 'waiting' || cartItems.length === 0 || !receiptFile} onClick={handleCheckout}>{checkoutLoading ? 'Processing' : useChapa ? 'Pay with Chapa' : 'Checkout'}</button>
+          <button type="button" className="btn btn--primary btn--block cart-checkout-spacer" disabled={checkoutLoading || cartStatus === 'waiting' || cartItems.length === 0 || (!useChapa && !receiptFile) || (useChapa && (!chapaAccount.trim() || !chapaDemoPassword.trim()))} onClick={handleCheckout}>{checkoutLoading ? 'Processing' : useChapa ? 'Pay with Chapa Demo' : 'Checkout'}</button>
         </aside>
       </div>
       {orderHistory ? (
@@ -676,7 +695,7 @@ function PharmacyOrders({ orders, onApprove, onReject }) {
       <h1 className="dash-title">Orders</h1>
       {pendingOrdersCount > 0 ? <p className="form-hint">New orders waiting: {pendingOrdersCount}</p> : null}
       {!visibleOrders.length ? <p className="form-hint">No orders to show.</p> : null}
-      <div className="card-grid card-grid--medicines">{visibleOrders.map((o) => { const hasPendingItems = o.items.some((item) => item.status === 'pending'); return <article className="form-panel pharmacy-order-card" key={o.id}><div className="pharmacy-order-card__top"><h2>Order #{String(o.id).slice(-6)}</h2>{!hasPendingItems ? <button type="button" className="pharmacy-order-card__close" aria-label="Remove old order" onClick={() => dismissOrder(o.id)}>x</button> : null}</div><p className="form-hint">Status: {o.status}</p><p className="form-hint">Payment: {o.paymentMethod === 'chapa' ? 'Chapa' : 'Checkout'}</p><OrderReceipt src={o.receiptImage} orderId={o.id} />{o.items.map((i) => <p key={`${i.medicineId}-${i.status}`}>{i.medicineName} - Qty {i.quantity} - {i.status}</p>)}{hasPendingItems ? <div className="table-actions"><button className="btn btn--primary btn--sm" disabled={busy === o.id} onClick={() => run(onApprove, o.id)}>Approve</button><button className="btn btn--danger btn--sm btn--danger-solid" disabled={busy === o.id} onClick={() => run(onReject, o.id)}>Decline</button></div> : null}</article> })}</div>
+      <div className="card-grid card-grid--medicines">{visibleOrders.map((o) => { const hasPendingItems = o.items.some((item) => item.status === 'pending'); return <article className="form-panel pharmacy-order-card" key={o.id}><div className="pharmacy-order-card__top"><h2>Order #{String(o.id).slice(-6)}</h2>{!hasPendingItems ? <button type="button" className="pharmacy-order-card__close" aria-label="Remove old order" onClick={() => dismissOrder(o.id)}>x</button> : null}</div><p className="form-hint">Status: {o.status}</p><p className="form-hint">Payment: {o.paymentMethod === 'chapa' ? 'Chapa Demo' : 'Checkout'}</p>{o.chapaAccount ? <p className="form-hint">Chapa account: {o.chapaAccount}</p> : null}<OrderReceipt src={o.receiptImage} orderId={o.id} />{o.items.map((i) => <p key={`${i.medicineId}-${i.status}`}>{i.medicineName} - Qty {i.quantity} - {i.status}</p>)}{hasPendingItems ? <div className="table-actions"><button className="btn btn--primary btn--sm" disabled={busy === o.id} onClick={() => run(onApprove, o.id)}>Approve</button><button className="btn btn--danger btn--sm btn--danger-solid" disabled={busy === o.id} onClick={() => run(onReject, o.id)}>Decline</button></div> : null}</article> })}</div>
     </>
   )
 }

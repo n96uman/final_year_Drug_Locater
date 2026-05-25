@@ -83,11 +83,19 @@ export function CartProvider({ children }) {
     setCartItems((p) => p.filter((x) => getId(x) !== id))
   }
 
-  const checkout = async (paymentMethod = 'none', receiptFile = null) => {
+  const checkout = async (paymentMethod = 'none', receiptFile = null, chapaDemo = {}) => {
     if (cartStatus === 'waiting') return { ok: false }
     if (!token || !currentUser || currentUser.role !== 'customer' || cartItems.length === 0) return { ok: false }
-    if (!receiptFile) {
+    if (paymentMethod !== 'chapa' && !receiptFile) {
       show('Please upload a receipt photo before checkout.')
+      return { ok: false }
+    }
+    if (paymentMethod === 'chapa' && !String(chapaDemo.chapaAccount || '').trim()) {
+      show('Enter a Chapa demo phone or account number.')
+      return { ok: false }
+    }
+    if (paymentMethod === 'chapa' && !String(chapaDemo.chapaDemoPassword || '').trim()) {
+      show('Enter any demo password. Do not use a real Chapa password.')
       return { ok: false }
     }
     setCheckoutLoading(true)
@@ -96,13 +104,10 @@ export function CartProvider({ children }) {
       const delivery = 50
       const total = subtotal + delivery
       const items = cartItems.map((i) => ({ medicineId: getId(i), medicineName: i.name, pharmacyName: i.pharmacyName, price: i.price, quantity: i.quantity }))
-      const r = await orderApi.checkout({ items, subtotal, delivery, total, paymentMethod, receiptFile }, token)
+      const r = await orderApi.checkout({ items, subtotal, delivery, total, paymentMethod, receiptFile, ...chapaDemo }, token)
       setCartStatus('waiting')
       setPendingOrderId(r.order?._id || r.order?.id || null)
       setOrderHistory(countOrderItems(r.order))
-      if (r.checkoutUrl) {
-        window.location.assign(r.checkoutUrl)
-      }
       show(r.message || (paymentMethod === 'chapa' ? 'Chapa payment started.' : 'Checkout submitted. Status changed to waiting for pharmacy approval.'))
       return { ok: true }
     } catch (e) {
