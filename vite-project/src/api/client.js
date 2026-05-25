@@ -58,6 +58,7 @@ export const medicineApi = {
 
 export const orderApi = {
   checkout: (payload, token) => apiFetch('/orders', { method: 'POST', body: payload, token }),
+  verifyChapaPayment: (payload, token) => apiFetch('/orders/payment/chapa/verify', { method: 'POST', body: payload, token }),
   listMine: (token) => apiFetch('/orders/mine', { token }),
   listPharmacy: (token) => apiFetch('/orders/pharmacy', { token }),
   approveForPharmacy: (id, token) => apiFetch(`/orders/${id}/approve`, { method: 'PUT', token }),
@@ -68,6 +69,7 @@ export const orderApi = {
       return apiFetch(`/orders/${id}/decline`, { method: 'PUT', token })
     }
   },
+  listTransactions: (token, period = '') => apiFetch(`/orders/transactions${period ? `?period=${period}` : ''}`, { token }),
 }
 
 export const adminApi = {

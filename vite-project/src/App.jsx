@@ -1,4 +1,7 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+﻿import TransactionHistoryPage from './TransactionHistoryPage'
+  <Route path="/transactions/week" element={<CustomerRoute><PublicLayout><TransactionHistoryPage period="week" /></PublicLayout></CustomerRoute>} />
+  <Route path="/transactions/all" element={<CustomerRoute><PublicLayout><TransactionHistoryPage period="" /></PublicLayout></CustomerRoute>} />
+import { useEffect, useMemo, useState } from 'react'
 import { Navigate, NavLink, Outlet, Route, Routes, useLocation, useNavigate, Link } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
@@ -142,12 +145,17 @@ function Pharmacies({ medicines, loading, error }) {
 
 function CartPage() {
   const { cartItems, cartStatus, orderHistory, removeFromCart, updateQuantity, checkout, checkoutLoading, checkPendingOrderStatus, subtotal, delivery, total } = useCart()
+  const [paymentMethod, setPaymentMethod] = useState('none')
   useEffect(() => {
     if (cartStatus !== 'waiting') return
     checkPendingOrderStatus()
     const t = setInterval(checkPendingOrderStatus, 5000)
     return () => clearInterval(t)
   }, [cartStatus, checkPendingOrderStatus])
+
+  const handleCheckout = async () => {
+    await checkout(paymentMethod)
+  }
 
   return (
     <>
@@ -158,7 +166,7 @@ function CartPage() {
             <table className="cart-table"><thead><tr><th>Medicine name</th><th>Pharmacy name</th><th>Price</th><th>Quantity</th><th>Action</th></tr></thead><tbody>{cartItems.map((i) => <CartItem key={i._id || i.id} item={i} onRemove={removeFromCart} onUpdateQuantity={updateQuantity} />)}</tbody></table>
           ) : <div className="cart-empty"><p>Your cart is empty.</p><Link to="/search" className="btn btn--outline">Find medicines</Link></div>}
         </div>
-        <aside className="cart-summary"><h2>Order summary</h2><div className="cart-summary__row"><span>Subtotal</span><span>{subtotal} ETB</span></div><div className="cart-summary__row"><span>Delivery</span><span>{delivery} ETB</span></div><div className="cart-summary__row cart-summary__row--total"><span>Total price</span><span>{total} ETB</span></div><button type="button" className="btn btn--primary btn--block cart-checkout-spacer" disabled={checkoutLoading || cartStatus === 'waiting' || cartItems.length === 0} onClick={checkout}>{checkoutLoading ? 'Processing' : 'Checkout'}</button></aside>
+        <aside className="cart-summary"><h2>Order summary</h2><div className="form-group"><label>Payment method</label><div className="radio-group"><label><input type="radio" name="paymentMethod" value="none" checked={paymentMethod === 'none'} onChange={(e) => setPaymentMethod(e.target.value)} /> Checkout request only</label><label><input type="radio" name="paymentMethod" value="chapa" checked={paymentMethod === 'chapa'} onChange={(e) => setPaymentMethod(e.target.value)} /> Pay with Chapa</label></div>{paymentMethod === 'chapa' ? <p className="form-hint">You will be redirected to Chapa for secure payment.</p> : null}</div><div className="cart-summary__row"><span>Subtotal</span><span>{subtotal} ETB</span></div><div className="cart-summary__row"><span>Delivery</span><span>{delivery} ETB</span></div><div className="cart-summary__row cart-summary__row--total"><span>Total price</span><span>{total} ETB</span></div><button type="button" className="btn btn--primary btn--block cart-checkout-spacer" disabled={checkoutLoading || cartStatus === 'waiting' || cartItems.length === 0} onClick={handleCheckout}>{checkoutLoading ? 'Processing' : 'Checkout'}</button></aside>
       </div>
       {orderHistory ? (
         <section className="form-panel cart-history">
@@ -256,6 +264,51 @@ function Register() {
           <p className="auth-alt__label">Already registered?</p>
           <Link to="/login" className="btn btn--outline btn--block">Back to login</Link>
         </div>
+      </section>
+    </div>
+  )
+}
+
+function PaymentCallback() {
+  const { token } = useAuth()
+  const location = useLocation()
+  const [status, setStatus] = useState('verifying')
+  const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    const search = new URLSearchParams(location.search)
+    const txRef = search.get('tx_ref') || search.get('txRef') || search.get('reference')
+    if (!txRef) {
+      setStatus('error')
+      setMessage('Payment reference is missing.')
+      return
+    }
+
+    ;(async () => {
+      try {
+        if (!token) throw new Error('Please sign in again to verify payment.')
+        const result = await orderApi.verifyChapaPayment({ txRef }, token)
+        if (result.status === 'paid') {
+          setStatus('success')
+          setMessage('Payment completed. Your order is now waiting for pharmacy approval.')
+        } else {
+          setStatus('failed')
+          setMessage(result.message || 'Payment could not be verified. Please try again.')
+        }
+      } catch (e) {
+        setStatus('error')
+        setMessage(e.message || 'Payment verification failed.')
+      }
+    })()
+  }, [location.search, token])
+
+  return (
+    <div className="page-inner page-inner--narrow">
+      <header className="page-header"><h1>Chapa payment status</h1></header>
+      <section className="form-panel">
+        {status === 'verifying' ? <p className="form-hint">Verifying payment, please wait…</p> : null}
+        {(status === 'success' || status === 'failed' || status === 'error') ? <p className="form-hint" role={status === 'failed' || status === 'error' ? 'alert' : undefined}>{message}</p> : null}
+        <Link to="/cart" className="btn btn--primary">Return to cart</Link>
       </section>
     </div>
   )
@@ -671,6 +724,7 @@ export default function App() {
       <Route path="/profile" element={<CustomerRoute><PublicLayout><Profile /></PublicLayout></CustomerRoute>} />
       <Route path="/login" element={<PublicLayout><Login /></PublicLayout>} />
       <Route path="/register" element={<PublicLayout><Register /></PublicLayout>} />
+      <Route path="/payment/callback" element={<CustomerRoute><PublicLayout><PaymentCallback /></PublicLayout></CustomerRoute>} />
       <Route path="/pharmacy-pending" element={<PharmacyPendingRoute><PublicLayout><PharmacyPendingPage /></PublicLayout></PharmacyPendingRoute>} />
       <Route path="/pharmacy-location" element={<PharmacyLocationRoute><PublicLayout><PharmacyLocationPage /></PublicLayout></PharmacyLocationRoute>} />
       <Route path="/admin" element={<AdminRoute><PublicLayout><AdminPage /></PublicLayout></AdminRoute>} />

@@ -82,7 +82,7 @@ export function CartProvider({ children }) {
     setCartItems((p) => p.filter((x) => getId(x) !== id))
   }
 
-  const checkout = async () => {
+  const checkout = async (paymentMethod = 'none') => {
     if (cartStatus === 'waiting') return { ok: false }
     if (!token || !currentUser || currentUser.role !== 'customer' || cartItems.length === 0) return { ok: false }
     setCheckoutLoading(true)
@@ -91,11 +91,14 @@ export function CartProvider({ children }) {
       const delivery = 50
       const total = subtotal + delivery
       const items = cartItems.map((i) => ({ medicineId: getId(i), medicineName: i.name, pharmacyName: i.pharmacyName, price: i.price, quantity: i.quantity }))
-      const r = await orderApi.checkout({ items, subtotal, delivery, total }, token)
+      const r = await orderApi.checkout({ items, subtotal, delivery, total, paymentMethod }, token)
       setCartStatus('waiting')
       setPendingOrderId(r.order?._id || r.order?.id || null)
       setOrderHistory(countOrderItems(r.order))
-      show('Checkout submitted. Status changed to waiting for pharmacy approval.')
+      if (r.checkoutUrl) {
+        window.location.assign(r.checkoutUrl)
+      }
+      show(paymentMethod === 'chapa' ? 'Redirecting to Chapa for payment...' : 'Checkout submitted. Status changed to waiting for pharmacy approval.')
       return { ok: true }
     } catch (e) {
       show(e.message)
@@ -111,7 +114,15 @@ export function CartProvider({ children }) {
       if (!m) return
       setOrderHistory(countOrderItems(m))
       if (m.status === 'approved') { setCartItems([]); setCartStatus('active'); setPendingOrderId(null); show('Order approved. Cart cleared.') }
-      if (m.status === 'rejected') { setCartItems([]); setCartStatus('active'); setPendingOrderId(null); show('Order declined by pharmacy. Cart cleared.') }
+      if (m.status === 'rejected') {
+        setCartItems([]); setCartStatus('active'); setPendingOrderId(null);
+        // Check if payment was chapa and refunded
+        if (m.paymentMethod === 'chapa') {
+          show('Your money has been returned because the pharmacy declined your order.')
+        } else {
+          show('Order declined by pharmacy. Cart cleared.')
+        }
+      }
       if (m.status === 'partially_approved') { setCartStatus('active'); setPendingOrderId(null); show('Order partially approved. Check history summary.') }
     } catch {}
   }, [cartStatus, pendingOrderId, token])
