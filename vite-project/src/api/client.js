@@ -62,6 +62,7 @@ export const orderApi = {
   verifyChapaPayment: (payload, token) => apiFetch('/orders/payment/chapa/verify', { method: 'POST', body: payload, token }),
   listMine: (token) => apiFetch('/orders/mine', { token }),
   listPharmacy: (token) => apiFetch('/orders/pharmacy', { token }),
+  cancelMine: (id, token) => apiFetch(`/orders/${id}`, { method: 'DELETE', token }),
   approveForPharmacy: (id, token) => apiFetch(`/orders/${id}/approve`, { method: 'PUT', token }),
   rejectForPharmacy: async (id, token) => {
     try {

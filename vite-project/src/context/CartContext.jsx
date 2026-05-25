@@ -36,6 +36,7 @@ export function CartProvider({ children }) {
   const [orderHistory, setOrderHistory] = useState(init.orderHistory || null)
   const [notice, setNotice] = useState('')
   const [checkoutLoading, setCheckoutLoading] = useState(false)
+  const [cancelLoading, setCancelLoading] = useState(false)
   const t = useRef(null)
 
   useEffect(() => {
@@ -106,6 +107,25 @@ export function CartProvider({ children }) {
     } finally { setCheckoutLoading(false) }
   }
 
+  const cancelPendingOrder = async () => {
+    if (cartStatus !== 'waiting' || !pendingOrderId || !token) return { ok: false }
+    setCancelLoading(true)
+    try {
+      const result = await orderApi.cancelMine(pendingOrderId, token)
+      setCartStatus('active')
+      setPendingOrderId(null)
+      setOrderHistory(countOrderItems(result.order))
+      show(result.message || 'Order cancelled. You can edit your cart again.')
+      return { ok: true }
+    } catch (e) {
+      show(e.message || 'Could not cancel the order.')
+      await checkPendingOrderStatus()
+      return { ok: false }
+    } finally {
+      setCancelLoading(false)
+    }
+  }
+
   const checkPendingOrderStatus = useCallback(async () => {
     if (cartStatus !== 'waiting' || !pendingOrderId || !token) return
     try {
@@ -113,6 +133,11 @@ export function CartProvider({ children }) {
       const m = (d.orders || []).find((o) => (o._id || o.id) === pendingOrderId)
       if (!m) return
       setOrderHistory(countOrderItems(m))
+      if (m.status === 'cancelled') {
+        setCartStatus('active')
+        setPendingOrderId(null)
+        show('Order cancelled. You can edit your cart again.')
+      }
       if (m.status === 'approved') {
         setCartItems([])
         setCartStatus('active')
@@ -139,7 +164,7 @@ export function CartProvider({ children }) {
   const delivery = cartItems.length ? 50 : 0
   const total = subtotal + delivery
 
-  const value = useMemo(() => ({ cartItems, cartStatus, orderHistory, addToCart, updateQuantity, removeFromCart, checkout, checkoutLoading, checkPendingOrderStatus, subtotal, delivery, total, notice, dismissNotice, notify }), [cartItems, cartStatus, orderHistory, checkoutLoading, checkPendingOrderStatus, subtotal, delivery, total, notice, dismissNotice, notify])
+  const value = useMemo(() => ({ cartItems, cartStatus, orderHistory, addToCart, updateQuantity, removeFromCart, checkout, checkoutLoading, cancelPendingOrder, cancelLoading, checkPendingOrderStatus, subtotal, delivery, total, notice, dismissNotice, notify }), [cartItems, cartStatus, orderHistory, checkoutLoading, cancelLoading, checkPendingOrderStatus, subtotal, delivery, total, notice, dismissNotice, notify])
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>
 }

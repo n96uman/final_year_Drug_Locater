@@ -143,7 +143,7 @@ function Pharmacies({ medicines, loading, error }) {
 }
 
 function CartPage() {
-  const { cartItems, cartStatus, orderHistory, removeFromCart, updateQuantity, checkout, checkoutLoading, checkPendingOrderStatus, subtotal, delivery, total } = useCart()
+  const { cartItems, cartStatus, orderHistory, removeFromCart, updateQuantity, checkout, checkoutLoading, cancelPendingOrder, cancelLoading, checkPendingOrderStatus, subtotal, delivery, total } = useCart()
   const [paymentMethod, setPaymentMethod] = useState('none')
   useEffect(() => {
     if (cartStatus !== 'waiting') return
@@ -155,6 +155,10 @@ function CartPage() {
   const handleCheckout = async () => {
     if (paymentMethod === 'chapa' && !window.confirm('Continue to Chapa test payment?')) return
     await checkout(paymentMethod)
+  }
+  const handleCancelWaitingOrder = async () => {
+    if (!window.confirm('Cancel this waiting order? You can edit your cart again after cancelling.')) return
+    await cancelPendingOrder()
   }
 
   return (
@@ -175,6 +179,8 @@ function CartPage() {
           <div className="cart-summary__row"><span>Approved items</span><span>{orderHistory.approved}</span></div>
           <div className="cart-summary__row cart-summary__row--declined"><span>Declined items</span><span>{orderHistory.rejected}</span></div>
           <div className="cart-summary__row"><span>Pending items</span><span>{orderHistory.pending}</span></div>
+          {cartStatus === 'waiting' && orderHistory.pending > 0 && orderHistory.approved === 0 ? <button type="button" className="btn btn--danger btn--block" disabled={cancelLoading} onClick={handleCancelWaitingOrder}>{cancelLoading ? 'Cancelling...' : 'Cancel waiting order'}</button> : null}
+          {cartStatus === 'waiting' && orderHistory.approved > 0 ? <p className="form-hint">This order has pharmacy approval and can no longer be cancelled.</p> : null}
         </section>
       ) : null}
     </>

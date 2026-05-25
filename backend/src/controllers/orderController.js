@@ -150,8 +150,22 @@ exports.getMyOrders = async (req, res) => res.json({ orders: await Order.find({ 
 
 exports.getPharmacyOrders = async (req, res) => {
   const id = req.user._id
-  const orders = await Order.find({ $or: [{ 'items.pharmacyId': id }, { 'items.pharmacyName': req.user.name }] }).populate('customer', 'name email').sort({ createdAt: -1 })
+  const orders = await Order.find({ status: { $ne: 'cancelled' }, $or: [{ 'items.pharmacyId': id }, { 'items.pharmacyName': req.user.name }] }).populate('customer', 'name email').sort({ createdAt: -1 })
   res.json({ orders: orders.map((order) => ({ id: order._id, customer: order.customer, createdAt: order.createdAt, status: order.status, items: order.items.filter((item) => belongs(item, id, req.user.name)) })) })
+}
+
+exports.cancelCustomerOrder = async (req, res) => {
+  const order = await Order.findOne({ _id: req.params.orderId, customer: req.user._id })
+  if (!order) return res.status(404).json({ message: 'Order not found.' })
+  if (order.status !== 'pending' || order.items.some((item) => item.status === 'approved')) {
+    return res.status(409).json({ message: 'This order cannot be cancelled after pharmacy approval.' })
+  }
+  order.status = 'cancelled'
+  await order.save()
+  if (order.paymentMethod === 'chapa') {
+    await Transaction.updateMany({ order: order._id }, { status: 'refunded', updatedAt: new Date() })
+  }
+  res.json({ message: order.paymentMethod === 'chapa' ? 'Order cancelled. Your Chapa test payment has been returned.' : 'Order cancelled.', order })
 }
 
 exports.approvePharmacyOrder = async (req, res) => {
