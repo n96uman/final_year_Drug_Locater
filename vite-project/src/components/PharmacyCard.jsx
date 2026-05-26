@@ -1,6 +1,45 @@
 ﻿import { useAuth } from '../context/AuthContext'
 import { useLocation, useNavigate } from 'react-router-dom'
 
+function openDirections(pharmacyLat, pharmacyLng, pharmacyLocation) {
+  if (pharmacyLat != null && pharmacyLng != null) {
+    const dest = `${pharmacyLat},${pharmacyLng}`
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const origin = `${pos.coords.latitude},${pos.coords.longitude}`
+          window.open(
+            `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}&travelmode=driving`,
+            '_blank',
+            'noopener,noreferrer'
+          )
+        },
+        () => {
+          window.open(
+            `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`,
+            '_blank',
+            'noopener,noreferrer'
+          )
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      )
+    } else {
+      window.open(
+        `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`,
+        '_blank',
+        'noopener,noreferrer'
+      )
+    }
+  } else if (pharmacyLocation) {
+    const dest = encodeURIComponent(pharmacyLocation)
+    window.open(
+      `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`,
+      '_blank',
+      'noopener,noreferrer'
+    )
+  }
+}
+
 export default function PharmacyCard({ medicine, onAddToCart }) {
   const { currentUser } = useAuth()
   const nav = useNavigate()
@@ -12,6 +51,8 @@ export default function PharmacyCard({ medicine, onAddToCart }) {
     onAddToCart(medicine)
   }
 
+  const hasLocation = (medicine.pharmacyLat != null && medicine.pharmacyLng != null) || medicine.pharmacyLocation
+
   return (
     <article className="pharmacy-result-card">
       <h3>{medicine.pharmacyName}</h3>
@@ -22,7 +63,19 @@ export default function PharmacyCard({ medicine, onAddToCart }) {
         <span className="pharmacy-result-card__price">{medicine.price} ETB</span>
       </div>
       {medicine.distanceKm != null ? <p className="form-hint">Distance: {medicine.distanceKm.toFixed(1)} km</p> : null}
-      <button type="button" className="btn btn--primary btn--sm" onClick={add}>Add to Cart</button>
+      <div className="pharmacy-result-card__actions">
+        <button type="button" className="btn btn--primary btn--sm" onClick={add}>Add to Cart</button>
+        {hasLocation ? (
+          <button
+            type="button"
+            className="btn btn--outline btn--sm"
+            onClick={() => openDirections(medicine.pharmacyLat, medicine.pharmacyLng, medicine.pharmacyLocation)}
+            aria-label={`Get directions to ${medicine.pharmacyName}`}
+          >
+            🗺 Get Directions
+          </button>
+        ) : null}
+      </div>
     </article>
   )
 }
