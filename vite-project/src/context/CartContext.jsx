@@ -13,11 +13,15 @@ const countOrderItems = (order) => {
     .filter((i) => i.status === 'rejected' && String(i.rejectionReason || '').trim())
     .map((i) => `${i.medicineName || 'Medicine'}: ${String(i.rejectionReason || '').trim()}`)
   return {
+    orderId: order?._id || order?.id || null,
     total: items.length,
     approved: items.filter((i) => i.status === 'approved').length,
     rejected: items.filter((i) => i.status === 'rejected').length,
     pending: items.filter((i) => i.status === 'pending').length,
     status: order?.status || 'pending',
+    wantsDelivery: Boolean(order?.wantsDelivery),
+    deliveryLocationLat: order?.deliveryLocationLat ?? null,
+    deliveryLocationLng: order?.deliveryLocationLng ?? null,
     rejectedReasons,
     updatedAt: new Date().toISOString(),
   }
@@ -107,7 +111,7 @@ export function CartProvider({ children }) {
     setCartItems((p) => p.filter((x) => getId(x) !== id))
   }
 
-  const checkout = async (paymentMethod = 'none', receiptFile = null, prescriptionFile = null, chapaDemo = {}) => {
+  const checkout = async (paymentMethod = 'none', receiptFile = null, prescriptionFile = null, wantsDelivery = false, chapaDemo = {}) => {
     if (cartStatus === 'waiting') return { ok: false }
     if (!token || !currentUser || currentUser.role !== 'customer' || cartItems.length === 0) return { ok: false }
     if (paymentMethod !== 'chapa' && !receiptFile) {
@@ -125,7 +129,7 @@ export function CartProvider({ children }) {
     setCheckoutLoading(true)
     try {
       const subtotal = cartItems.reduce((s, i) => s + i.price * i.quantity, 0)
-      const delivery = 50
+      const delivery = wantsDelivery ? 50 : 0
       const total = subtotal + delivery
       const items = cartItems.map((i) => ({ medicineId: getId(i), medicineName: i.name, pharmacyName: i.pharmacyName, price: i.price, quantity: i.quantity }))
       const r = await orderApi.checkout({
@@ -134,6 +138,7 @@ export function CartProvider({ children }) {
         delivery,
         total,
         paymentMethod,
+        wantsDelivery,
         receiptFile,
         prescriptionFile,
         ...chapaDemo,
@@ -202,11 +207,24 @@ export function CartProvider({ children }) {
     } catch {}
   }, [cartStatus, pendingOrderId, token])
 
+  const updateDeliveryLocation = async (orderId, deliveryLocationLat, deliveryLocationLng) => {
+    if (!token) return { ok: false, message: 'Please login again.' }
+    try {
+      const result = await orderApi.updateDeliveryLocation(orderId, { deliveryLocationLat, deliveryLocationLng }, token)
+      if (result?.order) setOrderHistory(countOrderItems(result.order))
+      show(result.message || 'Delivery location saved.')
+      return { ok: true }
+    } catch (e) {
+      show(e.message || 'Could not save delivery location.')
+      return { ok: false, message: e.message }
+    }
+  }
+
   const subtotal = cartItems.reduce((s, i) => s + i.price * i.quantity, 0)
   const delivery = cartItems.length ? 50 : 0
   const total = subtotal + delivery
 
-  const value = useMemo(() => ({ cartItems, cartStatus, orderHistory, addToCart, updateQuantity, removeFromCart, checkout, checkoutLoading, cancelPendingOrder, cancelLoading, checkPendingOrderStatus, subtotal, delivery, total, notice, dismissNotice, notify }), [cartItems, cartStatus, orderHistory, checkoutLoading, cancelLoading, checkPendingOrderStatus, subtotal, delivery, total, notice, dismissNotice, notify])
+  const value = useMemo(() => ({ cartItems, cartStatus, orderHistory, addToCart, updateQuantity, removeFromCart, checkout, checkoutLoading, cancelPendingOrder, cancelLoading, checkPendingOrderStatus, updateDeliveryLocation, subtotal, delivery, total, notice, dismissNotice, notify }), [cartItems, cartStatus, orderHistory, checkoutLoading, cancelLoading, checkPendingOrderStatus, subtotal, delivery, total, notice, dismissNotice, notify])
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>
 }

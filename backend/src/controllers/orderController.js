@@ -67,6 +67,7 @@ exports.createOrder = async (req, res) => {
   const prescriptionPath = prescriptionFile ? sanitizeUploadPath(`/uploads/${prescriptionFile.filename}`) : ''
   const chapaAccount = String(req.body.chapaAccount || '').trim()
   const chapaDemoPassword = String(req.body.chapaDemoPassword || '').trim()
+  const wantsDelivery = req.body.wantsDelivery === true || req.body.wantsDelivery === 'true' || req.body.wantsDelivery === '1'
 
   if (paymentMethod !== 'chapa' && !receiptPath) return res.status(400).json({ message: 'Please upload a receipt photo before checkout.' })
   if (paymentMethod === 'chapa' && !chapaAccount) return res.status(400).json({ message: 'Enter a Chapa demo phone or account number.' })
@@ -81,7 +82,7 @@ exports.createOrder = async (req, res) => {
     final.push({ medicineId: med._id, pharmacyId: med.createdBy, medicineName: med.name, pharmacyName: med.pharmacyName, price: Number(med.price), quantity: qty, status: 'pending' })
   }
   const subtotal = final.reduce((sum, item) => sum + item.price * item.quantity, 0)
-  const delivery = final.length ? 50 : 0
+  const delivery = wantsDelivery && final.length ? 50 : 0
   const total = subtotal + delivery
   const order = await Order.create({
     customer: req.user._id,
@@ -89,6 +90,7 @@ exports.createOrder = async (req, res) => {
     subtotal,
     delivery,
     total,
+    wantsDelivery,
     status: 'pending',
     paymentMethod,
     paymentStatus: paymentMethod === 'chapa' ? 'paid' : 'pending',
@@ -102,6 +104,26 @@ exports.createOrder = async (req, res) => {
     return res.status(201).json({ order, testPayment: true, message: 'Chapa demo payment accepted. Order is waiting for pharmacy approval.' })
   }
   res.status(201).json({ order, message: 'Order placed and waiting pharmacy approval.' })
+}
+
+exports.updateDeliveryLocation = async (req, res) => {
+  const order = await Order.findOne({ _id: req.params.orderId, customer: req.user._id })
+  if (!order) return res.status(404).json({ message: 'Order not found.' })
+  if (!order.wantsDelivery) return res.status(400).json({ message: 'Delivery is not enabled for this order.' })
+  if (!['approved', 'partially_approved'].includes(order.status)) {
+    return res.status(409).json({ message: 'Delivery location can be set only after order approval.' })
+  }
+
+  const lat = Number(req.body.deliveryLocationLat)
+  const lng = Number(req.body.deliveryLocationLng)
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return res.status(400).json({ message: 'Valid latitude and longitude are required.' })
+  }
+
+  order.deliveryLocationLat = lat
+  order.deliveryLocationLng = lng
+  await order.save()
+  res.json({ message: 'Delivery location saved.', order })
 }
 
 exports.verifyChapaPayment = async (req, res) => {
@@ -133,6 +155,9 @@ exports.getPharmacyOrders = async (req, res) => {
       status: order.status,
       paymentMethod: order.paymentMethod,
       paymentStatus: order.paymentStatus,
+      wantsDelivery: Boolean(order.wantsDelivery),
+      deliveryLocationLat: order.deliveryLocationLat ?? null,
+      deliveryLocationLng: order.deliveryLocationLng ?? null,
       chapaAccount: order.chapaAccount,
       receiptImage: img(req, order.receiptImage),
       prescriptionImage: img(req, order.prescriptionImage || order.prescription),

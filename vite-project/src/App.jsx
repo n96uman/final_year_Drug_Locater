@@ -85,19 +85,37 @@ function AdminRoute({ children }) {
   return children
 }
 
-function Home() {
+function Home({ medicines, loading, error }) {
+  const { addToCart } = useCart()
+  const featured = (medicines || []).slice(0, 6)
   return (
-    <section className="hero" aria-labelledby="hero-heading">
-      <div className="hero__content">
-        <h2 id="hero-heading">Connect with pharmacies across Hawassa</h2>
-        <p className="lead">Find medicines quickly, compare prices, and send checkout requests for pharmacy approval.</p>
-        <Link className="btn btn--primary" to="/search">Search medicines</Link>
-      </div>
-      <aside className="hero__visual hero__visual--photo" aria-label="Healthcare illustration">
-        <img className="hero__visual-img" src={heroImage} alt="Pharmacy in Hawassa" width={640} height={480} decoding="async" />
-        <p className="hero__visual-caption">Smart search · Compare prices · Build your cart</p>
-      </aside>
-    </section>
+    <>
+      <section className="hero" aria-labelledby="hero-heading">
+        <div className="hero__content">
+          <h2 id="hero-heading">Connect with pharmacies across Hawassa</h2>
+          <p className="lead">Find medicines quickly, compare prices, and send checkout requests for pharmacy approval.</p>
+          <Link className="btn btn--primary" to="/search">Search medicines</Link>
+        </div>
+        <aside className="hero__visual hero__visual--photo" aria-label="Healthcare illustration">
+          <img className="hero__visual-img" src={heroImage} alt="Pharmacy in Hawassa" width={640} height={480} decoding="async" />
+          <p className="hero__visual-caption">Smart search · Compare prices · Build your cart</p>
+        </aside>
+      </section>
+      <section className="form-panel form-panel--wide">
+        <header className="section-header section-header--compact">
+          <h2>Available medicines</h2>
+          <Link to="/search" className="btn btn--outline btn--sm">View all</Link>
+        </header>
+        {loading ? <p className="form-hint">Loading medicines...</p> : null}
+        {!loading && error ? <p className="form-hint" role="alert">{error}</p> : null}
+        {!loading && !error && featured.length === 0 ? <p className="form-hint">No medicines available right now.</p> : null}
+        {!loading && !error && featured.length > 0 ? (
+          <div className="card-grid card-grid--medicines">
+            {featured.map((m) => <MedicineCard key={m._id || m.id} medicine={m} onAddToCart={addToCart} />)}
+          </div>
+        ) : null}
+      </section>
+    </>
   )
 }
 
@@ -176,10 +194,13 @@ function Pharmacies({ medicines, loading, error }) {
 
 function CartPage() {
   const { token } = useAuth()
-  const { cartItems, cartStatus, orderHistory, removeFromCart, updateQuantity, checkout, checkoutLoading, cancelPendingOrder, cancelLoading, checkPendingOrderStatus, subtotal, delivery, total } = useCart()
+  const { cartItems, cartStatus, orderHistory, removeFromCart, updateQuantity, checkout, checkoutLoading, cancelPendingOrder, cancelLoading, checkPendingOrderStatus, updateDeliveryLocation, subtotal } = useCart()
   const [useChapa, setUseChapa] = useState(false)
+  const [wantsDelivery, setWantsDelivery] = useState(false)
   const [receiptFile, setReceiptFile] = useState(null)
   const [prescriptionFile, setPrescriptionFile] = useState(null)
+  const [deliveryLat, setDeliveryLat] = useState('')
+  const [deliveryLng, setDeliveryLng] = useState('')
   const [chapaAccount, setChapaAccount] = useState('')
   const [chapaDemoPassword, setChapaDemoPassword] = useState('')
   const [transactions, setTransactions] = useState([])
@@ -210,14 +231,39 @@ function CartPage() {
       useChapa ? 'chapa' : 'none',
       receiptFile,
       prescriptionFile,
+      wantsDelivery,
       { chapaAccount, chapaDemoPassword },
     )
     if (result.ok) {
       setReceiptFile(null)
       setPrescriptionFile(null)
+      setDeliveryLat('')
+      setDeliveryLng('')
       setChapaAccount('')
       setChapaDemoPassword('')
     }
+  }
+  const fillDeliveryLocation = () => {
+    if (!navigator.geolocation) return window.alert('Location is not supported in this browser.')
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setDeliveryLat(String(pos.coords.latitude))
+        setDeliveryLng(String(pos.coords.longitude))
+      },
+      () => window.alert('Could not get your location. Please allow location access.'),
+      { enableHighAccuracy: true, timeout: 10000 },
+    )
+  }
+  const submitDeliveryLocation = async () => {
+    const orderId = orderHistory?.orderId
+    if (!orderId) return window.alert('No approved order found for delivery update.')
+    const lat = Number(deliveryLat)
+    const lng = Number(deliveryLng)
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      window.alert('Please enter valid latitude and longitude before continuing.')
+      return
+    }
+    await updateDeliveryLocation(orderId, lat, lng)
   }
   const handleCancelWaitingOrder = async () => {
     if (!window.confirm('Cancel this waiting order? You can edit your cart again after cancelling.')) return
@@ -253,6 +299,11 @@ function CartPage() {
               <span>Chapa payment {useChapa ? 'on' : 'off'}</span>
             </label>
             {useChapa ? <p className="form-hint">Chapa is demo-only. It does not connect to the real Chapa service.</p> : <p className="form-hint">Chapa is off. Transfer the total to the pharmacy account below, then upload your receipt.</p>}
+            <label className="terms-block__check" htmlFor="wants-delivery" style={{ marginTop: '0.6rem' }}>
+              <input id="wants-delivery" type="checkbox" checked={wantsDelivery} onChange={(e) => setWantsDelivery(e.target.checked)} />
+              <span>Need delivery service</span>
+            </label>
+            <p className="form-hint">{wantsDelivery ? 'Delivery enabled (50 ETB). After approval you must provide your live location.' : 'Delivery disabled. Pick up medicine from pharmacy.'}</p>
           </div>
 
           {/* Show pharmacy account numbers when paying manually */}
@@ -294,8 +345,8 @@ function CartPage() {
             hint="Optional: upload a doctor prescription image for pharmacy review."
           />
           <div className="cart-summary__row"><span>Subtotal</span><span>{subtotal} ETB</span></div>
-          <div className="cart-summary__row"><span>Delivery</span><span>{delivery} ETB</span></div>
-          <div className="cart-summary__row cart-summary__row--total"><span>Total price</span><span>{total} ETB</span></div>
+          <div className="cart-summary__row"><span>Delivery</span><span>{wantsDelivery && cartItems.length ? 50 : 0} ETB</span></div>
+          <div className="cart-summary__row cart-summary__row--total"><span>Total price</span><span>{subtotal + (wantsDelivery && cartItems.length ? 50 : 0)} ETB</span></div>
           <button type="button" className="btn btn--primary btn--block cart-checkout-spacer" disabled={checkoutLoading || cartStatus === 'waiting' || cartItems.length === 0 || (!useChapa && !receiptFile) || (useChapa && (!chapaAccount.trim() || !chapaDemoPassword.trim()))} onClick={handleCheckout}>{checkoutLoading ? 'Processing' : useChapa ? 'Pay with Chapa Demo' : 'Checkout'}</button>
         </aside>
       </div>
@@ -316,6 +367,22 @@ function CartPage() {
           ) : null}
           {cartStatus === 'waiting' && orderHistory.pending > 0 && orderHistory.approved === 0 ? <button type="button" className="btn btn--danger btn--block" disabled={cancelLoading} onClick={handleCancelWaitingOrder}>{cancelLoading ? 'Cancelling...' : 'Cancel waiting order'}</button> : null}
           {cartStatus === 'waiting' && orderHistory.approved > 0 ? <p className="form-hint">This order has pharmacy approval and can no longer be cancelled.</p> : null}
+          {orderHistory.status === 'approved' && orderHistory.wantsDelivery && !hasCoords(orderHistory.deliveryLocationLat, orderHistory.deliveryLocationLng) ? (
+            <div className="form-group" style={{ marginTop: '1rem' }}>
+              <p className="form-hint"><strong>Delivery is enabled.</strong> You must provide your location to continue.</p>
+              <div className="table-actions">
+                <button type="button" className="btn btn--outline btn--sm" onClick={fillDeliveryLocation}>Use current location</button>
+              </div>
+              <div className="form-grid-2">
+                <div className="form-group"><label>Latitude</label><input value={deliveryLat} onChange={(e) => setDeliveryLat(e.target.value)} placeholder="e.g. 7.06205" /></div>
+                <div className="form-group"><label>Longitude</label><input value={deliveryLng} onChange={(e) => setDeliveryLng(e.target.value)} placeholder="e.g. 38.47635" /></div>
+              </div>
+              <button type="button" className="btn btn--primary btn--sm" onClick={submitDeliveryLocation}>Save delivery location</button>
+            </div>
+          ) : null}
+          {orderHistory.status === 'approved' && orderHistory.wantsDelivery && hasCoords(orderHistory.deliveryLocationLat, orderHistory.deliveryLocationLng) ? (
+            <p className="form-hint">Delivery location saved: {Number(orderHistory.deliveryLocationLat).toFixed(5)}, {Number(orderHistory.deliveryLocationLng).toFixed(5)}</p>
+          ) : null}
         </section>
       ) : null}
       <section className="form-panel cart-history">
@@ -355,7 +422,7 @@ function Login() {
             <div className="input-password-wrap">
               <input id="login-password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
               <button type="button" className="input-password-toggle" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((v) => !v)}>
-                {showPassword ? '🙈' : '👁'}
+                {showPassword ? 'Hide' : 'Show'}
               </button>
             </div>
           </div>
@@ -408,7 +475,7 @@ function Register() {
             <div className="input-password-wrap">
               <input id="reg-password" type={showPassword ? 'text' : 'password'} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required autoComplete="new-password" />
               <button type="button" className="input-password-toggle" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((v) => !v)}>
-                {showPassword ? '🙈' : '👁'}
+                {showPassword ? 'Hide' : 'Show'}
               </button>
             </div>
             <p className="form-hint form-hint--field">{strongPasswordHint}</p>
@@ -418,7 +485,7 @@ function Register() {
             <div className="input-password-wrap">
               <input id="reg-confirm-password" type={showConfirm ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required autoComplete="new-password" />
               <button type="button" className="input-password-toggle" aria-label={showConfirm ? 'Hide password' : 'Show password'} onClick={() => setShowConfirm((v) => !v)}>
-                {showConfirm ? '🙈' : '👁'}
+                {showConfirm ? 'Hide' : 'Show'}
               </button>
             </div>
             {confirmPassword && form.password !== confirmPassword ? <p className="form-hint form-hint--error" role="alert">Passwords do not match.</p> : null}
@@ -1159,9 +1226,19 @@ function PharmacyOrders({ orders, onApprove, onReject }) {
               <div className="pharmacy-order-card__meta">
                 <p><span className="order-meta-label">Status:</span> {o.status}</p>
                 <p><span className="order-meta-label">Payment:</span> {o.paymentMethod === 'chapa' ? 'Chapa Demo' : 'Manual transfer'}</p>
+                <p><span className="order-meta-label">Delivery:</span> {o.wantsDelivery ? 'On' : 'Off'}</p>
                 {o.chapaAccount ? <p><span className="order-meta-label">Chapa account:</span> {o.chapaAccount}</p> : null}
                 {o.customer?.name ? <p><span className="order-meta-label">Customer:</span> {o.customer.name}</p> : null}
                 {o.customer?.email ? <p><span className="order-meta-label">Email:</span> {o.customer.email}</p> : null}
+                {o.wantsDelivery && hasCoords(o.deliveryLocationLat, o.deliveryLocationLng) ? (
+                  <button
+                    type="button"
+                    className="btn btn--outline btn--sm"
+                    onClick={() => openDirections(o.deliveryLocationLat, o.deliveryLocationLng, '')}
+                  >
+                    Redirect to customer location
+                  </button>
+                ) : null}
               </div>
 
               <OrderImage src={o.receiptImage || o.receipt} orderId={o.id} label="📄 Payment receipt" emptyText="No receipt uploaded for this order." />
@@ -1779,7 +1856,7 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/" element={<PublicLayout><Home /></PublicLayout>} />
+      <Route path="/" element={<PublicLayout><Home medicines={medicines} loading={publicLoading} error={publicError} /></PublicLayout>} />
       <Route path="/search" element={<PublicLayout><Search medicines={medicines} loading={publicLoading} error={publicError} /></PublicLayout>} />
       <Route path="/pharmacies" element={<PublicLayout><Pharmacies medicines={medicines} loading={publicLoading} error={publicError} /></PublicLayout>} />
       <Route path="/cart" element={<CustomerRoute><PublicLayout><CartPage /></PublicLayout></CustomerRoute>} />

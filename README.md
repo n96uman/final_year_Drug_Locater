@@ -1,44 +1,64 @@
 ﻿# E-Pharmacy Drug Locater (Hawassa)
 
-Full-stack web app for finding medicines and ordering from pharmacies in Hawassa.
+Full-stack web application for searching medicines, placing pharmacy orders, and managing pharmacy/admin workflows in Hawassa.
 
 ## Project structure
 
 ```
-├── admin/           # Optional standalone admin UI (static HTML, open index.html locally)
+├── admin/           # Optional standalone admin UI (static HTML)
 ├── backend/         # Node.js + Express API (MongoDB)
-├── vite-project/    # React + Vite customer & pharmacy app
-├── api/             # Vercel serverless entry (re-exports backend)
-├── scripts/         # Build helper (copies Vite dist to root)
-├── package.json     # Root build script for Vercel
-└── vercel.json      # Deployment routes
+├── vite-project/    # React + Vite frontend (customer + pharmacy + admin routes)
+├── api/             # Vercel serverless entry point (re-exports backend app)
+├── scripts/         # Build helper scripts
+├── package.json     # Root scripts for production build
+└── vercel.json      # Vercel routing and build config
 ```
 
-## Features
+## How the system works
 
-- **Customers:** browse, search, cart, checkout, profile
-- **Pharmacies:** inventory, orders (approve/decline), dashboard
-- **Admins:** approve pharmacy registrations (in-app at `/admin` or via `admin/` static console)
+### Customer flow
 
-## Default admin login
+- Browse/search medicines from approved pharmacies.
+- Add items to cart (**one pharmacy at a time**).
+- Checkout with:
+  - Manual transfer + required receipt image, or
+  - Chapa demo mode.
+- Optional prescription image can be uploaded during checkout.
+- Optional delivery can be enabled in checkout.
+- If delivery is enabled, after order approval the customer must provide latitude/longitude.
 
-The backend creates one admin account automatically the first time it connects to MongoDB (if no admin exists yet).
+### Pharmacy flow
 
-| Field | Value |
-|-------|--------|
-| **Email** (login username) | ***** |
-| **Password** | ***** |
+- Register pharmacy account and upload licence image.
+- Wait for admin approval.
+- Manage medicines (add/update/delete).
+- Review incoming orders:
+  - See payment receipt and prescription image (if uploaded).
+  - Approve or reject (reject requires reason).
+- See delivery status per order and redirect to customer location when available.
 
-1. Start the backend and frontend (see below).
-2. Open the app → **Login**.
-3. Enter the email and password above.
-4. You are redirected to **`/admin`** to approve pending pharmacies.
+### Admin flow
 
-> Change this password in production (update the user in MongoDB or adjust the seed in `backend/src/server.js` before deploy).
+- Review pending pharmacy registrations.
+- Approve/reject pharmacies.
+- View transactions and expired medicine alerts.
+
+## Image and upload rules
+
+- Maximum file size: **2MB** per image.
+- Oversized image upload is blocked in the UI with popup notification.
+- Manual checkout cannot continue without receipt image.
+- Pharmacy registration cannot continue without licence image.
+
+## Authentication and security note
+
+- Do **not** keep or publish fixed/default admin credentials in documentation.
+- Use your own secure admin credentials in your environment/database.
+- Set a strong `JWT_SECRET` in production.
 
 ## Local development
 
-### Backend
+### 1) Backend
 
 ```bash
 cd backend
@@ -46,13 +66,18 @@ npm install
 npm run dev
 ```
 
-Create `backend/.env` from `backend/.env.example`. Chapa payments in this project are local demo-only, so no real Chapa secret key is required:
+Create `backend/.env` from `backend/.env.example`.
+
+Example:
 
 ```env
+MONGO_URI=mongodb://127.0.0.1:27017/drug_locater
+JWT_SECRET=your_strong_secret
+FRONTEND_URL=http://localhost:5173
 CHAPA_RETURN_URL=http://localhost:5173/payment/callback
 ```
 
-### Frontend
+### 2) Frontend
 
 ```bash
 cd vite-project
@@ -62,12 +87,28 @@ npm run dev
 
 Create `vite-project/.env` from `vite-project/.env.example`.
 
-The Vite dev server proxies `/api` and `/uploads` to `http://localhost:5000`.
+The Vite server proxies `/api` and `/uploads` to `http://localhost:5000`.
 
-## Vercel deployment
+## Deployment (Vercel)
 
-Import the **repository root** (not `vite-project` alone). Set env vars: `MONGO_URI`, `JWT_SECRET`, `FRONTEND_URL`, `NODE_ENV=production`, and `VITE_API_BASE_URL=/api`.
+Import the repository root and set these environment variables:
 
-Build: `npm run build` at the repo root (builds Vite, then copies output to `dist/`).
+- `MONGO_URI`
+- `JWT_SECRET`
+- `FRONTEND_URL`
+- `NODE_ENV=production`
+- `VITE_API_BASE_URL=/api`
 
-Verify: `https://your-app.vercel.app/api/health` → `{"status":"ok"}`.
+Build command at root:
+
+```bash
+npm run build
+```
+
+Health check:
+
+`https://your-app.vercel.app/api/health` should return:
+
+```json
+{"status":"ok"}
+```

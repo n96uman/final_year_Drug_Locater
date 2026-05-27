@@ -66,6 +66,7 @@ export const orderApi = {
       formData.append('delivery', String(payload.delivery || 0))
       formData.append('total', String(payload.total || 0))
       formData.append('paymentMethod', payload.paymentMethod || 'none')
+      formData.append('wantsDelivery', payload.wantsDelivery ? 'true' : 'false')
       formData.append('chapaAccount', payload.chapaAccount || '')
       formData.append('chapaDemoPassword', payload.chapaDemoPassword || '')
       if (payload.receiptFile) formData.append('receiptImage', payload.receiptFile)
@@ -78,6 +79,7 @@ export const orderApi = {
   listMine: (token) => apiFetch('/orders/mine', { token }),
   listPharmacy: (token) => apiFetch('/orders/pharmacy', { token }),
   cancelMine: (id, token) => apiFetch(`/orders/${id}`, { method: 'DELETE', token }),
+  updateDeliveryLocation: (id, payload, token) => apiFetch(`/orders/${id}/delivery-location`, { method: 'PUT', body: payload, token }),
   approveForPharmacy: (id, token) => apiFetch(`/orders/${id}/approve`, { method: 'PUT', token }),
   rejectForPharmacy: async (id, token, payload = {}) => {
     try {
