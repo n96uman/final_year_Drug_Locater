@@ -194,7 +194,7 @@ function Pharmacies({ medicines, loading, error }) {
 
 function CartPage() {
   const { token } = useAuth()
-  const { cartItems, cartStatus, orderHistory, removeFromCart, updateQuantity, checkout, checkoutLoading, cancelPendingOrder, cancelLoading, checkPendingOrderStatus, updateDeliveryLocation, subtotal } = useCart()
+  const { cartItems, cartStatus, orderHistory, removeFromCart, updateQuantity, checkout, checkoutLoading, cancelPendingOrder, cancelLoading, checkPendingOrderStatus, updateDeliveryLocation, syncCartPharmacyAccounts, subtotal } = useCart()
   const [useChapa, setUseChapa] = useState(false)
   const [wantsDelivery, setWantsDelivery] = useState(false)
   const [receiptFile, setReceiptFile] = useState(null)
@@ -206,6 +206,10 @@ function CartPage() {
   const [transactions, setTransactions] = useState([])
   const [transactionsLoading, setTransactionsLoading] = useState(false)
   const [transactionsError, setTransactionsError] = useState('')
+  useEffect(() => {
+    if (cartItems.length) syncCartPharmacyAccounts()
+  }, [cartItems.length, syncCartPharmacyAccounts])
+
   useEffect(() => {
     if (cartStatus !== 'waiting') return
     checkPendingOrderStatus()
@@ -615,15 +619,29 @@ const apiOrigin = (() => {
 const uploadImageSrc = (src) => {
   if (!src) return ''
   const s = String(src)
+  const toRelativeApi = (url) => {
+    const sameOrigin = typeof window !== 'undefined' && url.origin === window.location.origin
+    const sameApiOrigin = apiOrigin && url.origin === apiOrigin
+    if (sameOrigin || sameApiOrigin || /localhost|127\.0\.0\.1/i.test(url.hostname)) {
+      return `${url.pathname}${url.search}`
+    }
+    return null
+  }
+  if (s.includes('/api/files/serve')) {
+    try {
+      const url = new URL(s, typeof window !== 'undefined' ? window.location.origin : 'http://localhost')
+      return toRelativeApi(url) || s
+    } catch {
+      if (s.startsWith('/api/files/serve')) return s
+    }
+  }
   // CDN / external image — keep as-is
   if (/^https?:\/\//i.test(s)) {
     try {
       const url = new URL(s)
       if (url.pathname.startsWith('/uploads/')) {
-        const sameOrigin = typeof window !== 'undefined' && url.origin === window.location.origin
-        const sameApiOrigin = apiOrigin && url.origin === apiOrigin
-        // For local dev proxy or same-origin deploys, use relative path.
-        if (sameOrigin || sameApiOrigin || /localhost|127\.0\.0\.1/i.test(url.hostname)) return url.pathname
+        const rel = toRelativeApi(url)
+        if (rel) return rel
       }
     } catch {
       // malformed URL — return as-is

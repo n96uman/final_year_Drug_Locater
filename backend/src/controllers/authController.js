@@ -8,6 +8,7 @@ const { isStrongPassword, strongPasswordMessage } = require('../utils/passwordPo
 const { filePublicUrl } = require('../utils/publicFileUrl')
 const { sanitizeUploadPath } = require('../utils/sanitizeUploadPath')
 const { getUploadRoot } = require('../utils/uploadPaths')
+const { persistUpload, deleteStoredUpload } = require('../utils/storedFiles')
 
 const img = (req, p) => filePublicUrl(req, sanitizeUploadPath(p))
 
@@ -26,6 +27,7 @@ function tryUnlinkUpload(rel) {
   } catch {
     /* ignore */
   }
+  deleteStoredUpload(clean).catch(() => {})
 }
 const safe = (u, req) => ({
   id: u._id,
@@ -89,6 +91,8 @@ exports.register = async (req, res) => {
 
   const profilePath = profileFile ? sanitizeUploadPath(`/uploads/${profileFile.filename}`) : 'https://cdn-icons-png.flaticon.com/512/149/149071.png'
   const licensePath = licenseFile ? sanitizeUploadPath(`/uploads/${licenseFile.filename}`) : undefined
+  if (profileFile) await persistUpload(profilePath)
+  if (licenseFile) await persistUpload(licensePath)
 
   const user = await User.create({
     name,
@@ -129,7 +133,11 @@ exports.abandonPendingPharmacyAccount = async (req, res) => {
 exports.me = async (req, res) => res.json({ user: safe(req.user, req) })
 exports.updateProfile = async (req, res) => {
   if (req.body.name != null) req.user.name = String(req.body.name).trim().slice(0, 120)
-  if (req.file) req.user.profileImage = sanitizeUploadPath(`/uploads/${req.file.filename}`)
+  if (req.file) {
+    const profilePath = sanitizeUploadPath(`/uploads/${req.file.filename}`)
+    await persistUpload(profilePath)
+    req.user.profileImage = profilePath
+  }
   if (req.user.role === 'pharmacy') {
     if (req.body.location != null) {
       req.user.location = String(req.body.location).trim().slice(0, 500)
@@ -150,7 +158,9 @@ exports.updatePharmacyLicense = async (req, res) => {
   if (req.user.role !== 'pharmacy') return res.status(403).json({ message: 'Pharmacy account required' })
   if (!req.file) return res.status(400).json({ message: 'Licence image is required' })
   tryUnlinkUpload(req.user.licenseImage)
-  req.user.licenseImage = sanitizeUploadPath(`/uploads/${req.file.filename}`)
+  const licensePath = sanitizeUploadPath(`/uploads/${req.file.filename}`)
+  await persistUpload(licensePath)
+  req.user.licenseImage = licensePath
   if (req.user.pharmacyApprovalStatus === 'approved') req.user.pharmacyApprovalStatus = 'pending'
   await req.user.save()
   res.json({

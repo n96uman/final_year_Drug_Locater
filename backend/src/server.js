@@ -6,7 +6,9 @@ const multer = require('multer')
 const bcrypt = require('bcryptjs')
 const connectDB = require('./config/db')
 const User = require('./models/User')
+const fs = require('fs')
 const { getUploadRoot } = require('./utils/uploadPaths')
+const { persistUpload } = require('./utils/storedFiles')
 
 const app = express()
 
@@ -25,11 +27,25 @@ app.use(async (_req, _res, next) => {
   try {
     await ensureDb()
     await seedAdminUser()
+    await backfillUploadsToDb()
     next()
   } catch (e) {
     next(e)
   }
 })
+
+let uploadBackfillDone = false
+async function backfillUploadsToDb() {
+  if (uploadBackfillDone || process.env.SKIP_UPLOAD_BACKFILL === '1') return
+  uploadBackfillDone = true
+  const root = getUploadRoot()
+  if (!fs.existsSync(root)) return
+  for (const name of fs.readdirSync(root)) {
+    if (/^(license|profile|receipt|prescription)-\d+\.(jpe?g|png|gif|webp|jfif)$/i.test(name)) {
+      await persistUpload(`/uploads/${name}`).catch(() => {})
+    }
+  }
+}
 
 let adminSeedChecked = false
 async function seedAdminUser() {
@@ -47,6 +63,7 @@ async function seedAdminUser() {
   })
 }
 
+app.use('/api/files', require('./routes/fileRoutes'))
 app.use('/api/auth', require('./routes/authRoutes'))
 app.use('/api/medicines', require('./routes/medicineRoutes'))
 app.use('/api/orders', require('./routes/orderRoutes'))

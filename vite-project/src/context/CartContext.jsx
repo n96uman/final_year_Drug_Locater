@@ -1,5 +1,5 @@
 ﻿import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { orderApi } from '../api/client'
+import { medicineApi, orderApi } from '../api/client'
 import { useAuth } from './AuthContext'
 
 const CartContext = createContext(null)
@@ -65,6 +65,44 @@ export function CartProvider({ children }) {
   const dismissNotice = useCallback(() => { clearTimeout(t.current); setNotice('') }, [])
   const notify = useCallback((message) => show(message), [show])
 
+  const syncCartPharmacyAccounts = useCallback(async () => {
+    try {
+      const { medicines } = await medicineApi.list()
+      const byMedicineId = new Map()
+      const byPharmacyId = new Map()
+      const byPharmacyName = new Map()
+      for (const m of medicines || []) {
+        const acct = String(m.pharmacyAccountNumber || '').trim()
+        const mid = String(m._id || m.id || '')
+        const pid = String(m.createdBy || '')
+        const pname = String(m.pharmacyName || '').trim()
+        if (mid) byMedicineId.set(mid, acct)
+        if (pid && acct) byPharmacyId.set(pid, acct)
+        if (pname && acct) byPharmacyName.set(pname, acct)
+      }
+      setCartItems((prev) => {
+        if (!prev.length) return prev
+        let changed = false
+        const next = prev.map((item) => {
+          const mid = String(item._id || item.id || '')
+          const pid = String(item.createdBy || '')
+          const pname = String(item.pharmacyName || '').trim()
+          const acct =
+            byMedicineId.get(mid) ||
+            byPharmacyId.get(pid) ||
+            byPharmacyName.get(pname) ||
+            String(item.pharmacyAccountNumber || '').trim()
+          if (String(item.pharmacyAccountNumber || '').trim() === acct) return item
+          changed = true
+          return { ...item, pharmacyAccountNumber: acct, createdBy: pid || item.createdBy }
+        })
+        return changed ? next : prev
+      })
+    } catch {
+      /* keep existing cart data */
+    }
+  }, [])
+
   const addToCart = (m) => {
     if (!currentUser || currentUser.role !== 'customer') return show('Please login as a customer to add items to cart.')
     if (cartStatus === 'waiting') return show('Order waiting for approval.')
@@ -86,7 +124,7 @@ export function CartProvider({ children }) {
             ...x,
             quantity: x.quantity + 1,
             pharmacyAccountNumber: m.pharmacyAccountNumber || x.pharmacyAccountNumber || '',
-            createdBy: m.createdBy || x.createdBy,
+            createdBy: m.createdBy || x.createdBy || '',
           }
           : x)
       }
@@ -95,6 +133,7 @@ export function CartProvider({ children }) {
         ...m,
         quantity: 1,
         pharmacyAccountNumber: m.pharmacyAccountNumber || '',
+        createdBy: m.createdBy || '',
       }]
     })
   }
@@ -224,7 +263,7 @@ export function CartProvider({ children }) {
   const delivery = cartItems.length ? 50 : 0
   const total = subtotal + delivery
 
-  const value = useMemo(() => ({ cartItems, cartStatus, orderHistory, addToCart, updateQuantity, removeFromCart, checkout, checkoutLoading, cancelPendingOrder, cancelLoading, checkPendingOrderStatus, updateDeliveryLocation, subtotal, delivery, total, notice, dismissNotice, notify }), [cartItems, cartStatus, orderHistory, checkoutLoading, cancelLoading, checkPendingOrderStatus, subtotal, delivery, total, notice, dismissNotice, notify])
+  const value = useMemo(() => ({ cartItems, cartStatus, orderHistory, addToCart, updateQuantity, removeFromCart, checkout, checkoutLoading, cancelPendingOrder, cancelLoading, checkPendingOrderStatus, updateDeliveryLocation, syncCartPharmacyAccounts, subtotal, delivery, total, notice, dismissNotice, notify }), [cartItems, cartStatus, orderHistory, checkoutLoading, cancelLoading, checkPendingOrderStatus, syncCartPharmacyAccounts, subtotal, delivery, total, notice, dismissNotice, notify])
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>
 }

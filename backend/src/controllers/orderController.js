@@ -3,6 +3,7 @@ const Medicine = require('../models/Medicine')
 const Transaction = require('../models/Transaction')
 const { filePublicUrl } = require('../utils/publicFileUrl')
 const { sanitizeUploadPath } = require('../utils/sanitizeUploadPath')
+const { persistUpload } = require('../utils/storedFiles')
 
 const recalc = (items) => {
   const statuses = items.map((i) => i.status)
@@ -65,6 +66,8 @@ exports.createOrder = async (req, res) => {
   const requestedItems = bodyJson(req.body.items, [])
   const receiptPath = receiptFile ? sanitizeUploadPath(`/uploads/${receiptFile.filename}`) : ''
   const prescriptionPath = prescriptionFile ? sanitizeUploadPath(`/uploads/${prescriptionFile.filename}`) : ''
+  if (receiptPath) await persistUpload(receiptPath)
+  if (prescriptionPath) await persistUpload(prescriptionPath)
   const chapaAccount = String(req.body.chapaAccount || '').trim()
   const chapaDemoPassword = String(req.body.chapaDemoPassword || '').trim()
   const wantsDelivery = req.body.wantsDelivery === true || req.body.wantsDelivery === 'true' || req.body.wantsDelivery === '1'

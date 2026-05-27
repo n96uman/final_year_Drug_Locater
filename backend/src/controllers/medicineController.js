@@ -11,6 +11,11 @@ exports.getMedicines = async (_req, res) => {
   }).distinct('_id')
 
   // Exclude expired medicines from the public listing entirely
+  const ownerRows = await User.find({ _id: { $in: approvedOwners } })
+    .select('accountNumber location locationLat locationLng')
+    .lean()
+  const ownerById = new Map(ownerRows.map((u) => [String(u._id), u]))
+
   const medicines = await Medicine.find({
     createdBy: { $in: approvedOwners },
     $or: [
@@ -26,13 +31,16 @@ exports.getMedicines = async (_req, res) => {
   res.json({
     medicines: medicines.map((m) => {
       const obj = m.toObject()
+      const ownerRef = obj.createdBy && typeof obj.createdBy === 'object' ? obj.createdBy : null
+      const ownerId = String(ownerRef?._id || obj.createdBy || '')
+      const owner = ownerById.get(ownerId) || ownerRef || {}
       return {
         ...obj,
-        createdBy: obj.createdBy?._id || obj.createdBy,
-        pharmacyLocation: obj.createdBy?.location || '',
-        pharmacyLat: obj.createdBy?.locationLat ?? null,
-        pharmacyLng: obj.createdBy?.locationLng ?? null,
-        pharmacyAccountNumber: obj.createdBy?.accountNumber || '',
+        createdBy: ownerId || obj.createdBy,
+        pharmacyLocation: owner.location || '',
+        pharmacyLat: owner.locationLat ?? null,
+        pharmacyLng: owner.locationLng ?? null,
+        pharmacyAccountNumber: String(owner.accountNumber || '').trim(),
       }
     }),
   })
@@ -42,7 +50,9 @@ exports.getMine = async (req, res) =>
   res.json({ medicines: await Medicine.find({ createdBy: req.user._id }).sort({ createdAt: -1 }) })
 
 exports.create = async (req, res) => {
-  const m = await Medicine.create({ ...req.body, createdBy: req.user._id })
+  const payload = { ...req.body, createdBy: req.user._id }
+  if (!String(payload.pharmacyName || '').trim()) payload.pharmacyName = req.user.name || ''
+  const m = await Medicine.create(payload)
 
   // Check if this pharmacy previously had an expired medicine with the same name
   // (case-insensitive, trimmed). If so, create an ExpiredAlert for admin review.

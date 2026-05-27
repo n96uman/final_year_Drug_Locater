@@ -40,7 +40,12 @@ const imageMulter = multer({
   storage,
   // Keep uploads below common serverless request-size ceilings.
   limits: { fileSize: 2 * 1024 * 1024 },
-  fileFilter: (_r, f, cb) => cb(null, (f.mimetype || '').startsWith('image/')),
+  fileFilter: (_r, f, cb) => {
+    const mime = (f.mimetype || '').toLowerCase()
+    const mimeOk = mime.startsWith('image/') || mime === 'application/octet-stream'
+    const extOk = /\.(jpe?g|png|gif|webp|jfif)$/i.test(f.originalname || '')
+    cb(null, mimeOk || extOk)
+  },
 })
 
 exports.uploadProfileImage = imageMulter

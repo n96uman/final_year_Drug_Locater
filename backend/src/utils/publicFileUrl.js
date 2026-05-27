@@ -13,9 +13,14 @@ function filePublicUrl(req, p) {
   if (p == null || p === '') return p
   const s = String(p)
   if (/^https?:\/\//i.test(s)) return s
+  const rel = s.startsWith('/') ? s : `/${s}`
+  if (rel.startsWith('/uploads/')) {
+    const apiPath = `/api/files/serve?path=${encodeURIComponent(rel)}`
+    const origin = getPublicOrigin(req)
+    return origin ? `${origin}${apiPath}` : apiPath
+  }
   const origin = getPublicOrigin(req)
-  const path = s.startsWith('/') ? s : `/${s}`
-  return origin ? `${origin}${path}` : path
+  return origin ? `${origin}${rel}` : rel
 }
 
 module.exports = { filePublicUrl, getPublicOrigin }

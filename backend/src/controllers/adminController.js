@@ -8,6 +8,7 @@ const ExpiredAlert = require('../models/ExpiredAlert')
 const { filePublicUrl } = require('../utils/publicFileUrl')
 const { sanitizeUploadPath } = require('../utils/sanitizeUploadPath')
 const { getUploadRoot } = require('../utils/uploadPaths')
+const { readStoredUpload } = require('../utils/storedFiles')
 
 const img = (req, p) => filePublicUrl(req, sanitizeUploadPath(p))
 
@@ -198,11 +199,9 @@ exports.servePharmacyLicense = async (req, res) => {
   if (!/^(license|profile)-\d+\.(jpe?g|png|gif|webp|jfif)$/i.test(basename)) {
     return res.status(404).json({ message: 'Invalid path' })
   }
-  const abs = path.resolve(UPLOAD_ROOT, basename)
-  if (!abs.startsWith(path.resolve(UPLOAD_ROOT))) return res.status(404).json({ message: 'Invalid path' })
-  if (!fs.existsSync(abs)) return res.status(404).json({ message: 'File not found' })
-  const ext = path.extname(abs).toLowerCase()
-  res.setHeader('Content-Type', MIME[ext] || 'application/octet-stream')
+  const stored = await readStoredUpload(rel)
+  if (!stored) return res.status(404).json({ message: 'File not found' })
+  res.setHeader('Content-Type', stored.mimeType)
   res.setHeader('Cache-Control', 'private, max-age=300')
-  return res.sendFile(abs)
+  return res.send(stored.data)
 }
