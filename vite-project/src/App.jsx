@@ -225,6 +225,18 @@ function CartPage() {
     await cancelPendingOrder()
   }
 
+  // Collect unique pharmacies with their account numbers from cart items
+  const pharmacyAccounts = useMemo(() => {
+    const seen = new Map()
+    for (const item of cartItems) {
+      const key = item.pharmacyName || 'Unknown pharmacy'
+      if (!seen.has(key)) {
+        seen.set(key, item.pharmacyAccountNumber || '')
+      }
+    }
+    return [...seen.entries()].map(([name, accountNumber]) => ({ name, accountNumber }))
+  }, [cartItems])
+
   return (
     <>
       <header className="page-header"><h1>Shopping cart</h1><p>Status: {cartStatus === 'waiting' ? 'Waiting pharmacy approval' : 'Ready to checkout'}</p></header>
@@ -241,8 +253,25 @@ function CartPage() {
               <input id="use-chapa" type="checkbox" checked={useChapa} onChange={(e) => setUseChapa(e.target.checked)} />
               <span>Chapa payment {useChapa ? 'on' : 'off'}</span>
             </label>
-            {useChapa ? <p className="form-hint">Chapa is demo-only. It does not connect to the real Chapa service.</p> : <p className="form-hint">Chapa is off. This will be sent as a checkout request only.</p>}
+            {useChapa ? <p className="form-hint">Chapa is demo-only. It does not connect to the real Chapa service.</p> : <p className="form-hint">Chapa is off. Transfer the total to the pharmacy account below, then upload your receipt.</p>}
           </div>
+
+          {/* Show pharmacy account numbers when paying manually */}
+          {!useChapa && cartItems.length > 0 ? (
+            <div className="pharmacy-accounts-box">
+              <p className="pharmacy-accounts-box__title">📋 Pharmacy payment details</p>
+              {pharmacyAccounts.map(({ name, accountNumber }) => (
+                <div key={name} className="pharmacy-accounts-box__row">
+                  <span className="pharmacy-accounts-box__name">{name}</span>
+                  {accountNumber
+                    ? <span className="pharmacy-accounts-box__number">{accountNumber}</span>
+                    : <span className="pharmacy-accounts-box__missing">No account number set — contact pharmacy directly</span>}
+                </div>
+              ))}
+              <p className="form-hint" style={{ marginTop: '0.5rem' }}>Transfer the total amount to the account above, then upload your receipt photo below.</p>
+            </div>
+          ) : null}
+
           {useChapa ? (
             <>
               <div className="form-group">
@@ -256,7 +285,7 @@ function CartPage() {
               </div>
             </>
           ) : (
-            <FileInput id="receipt-photo" label="Receipt photo" required fileName={receiptFile?.name} onChange={setReceiptFile} hint="Upload a clear payment or order receipt photo before checkout." />
+            <FileInput id="receipt-photo" label="Receipt photo" required fileName={receiptFile?.name} onChange={setReceiptFile} hint="Upload a clear photo of your payment receipt." />
           )}
           <div className="cart-summary__row"><span>Subtotal</span><span>{subtotal} ETB</span></div>
           <div className="cart-summary__row"><span>Delivery</span><span>{delivery} ETB</span></div>
@@ -493,47 +522,77 @@ function Profile() {
   const { currentUser, authLoading, refreshProfile, updateProfile, updatePharmacyLicense, logout } = useAuth()
   const nav = useNavigate()
   const isPharmacy = currentUser?.role === 'pharmacy'
+
+  // form state — always mirrors currentUser when not editing
   const [edit, setEdit] = useState(false)
-  const [name, setName] = useState(currentUser?.name || '')
-  const [pharmacyDisplayName, setPharmacyDisplayName] = useState(currentUser?.pharmacyDisplayName || currentUser?.name || '')
-  const [location, setLocation] = useState(currentUser?.location || '')
-  const [locationLat, setLocationLat] = useState(currentUser?.locationLat ?? '')
-  const [locationLng, setLocationLng] = useState(currentUser?.locationLng ?? '')
+  const [name, setName] = useState('')
+  const [location, setLocation] = useState('')
+  const [locationLat, setLocationLat] = useState('')
+  const [locationLng, setLocationLng] = useState('')
+  const [accountNumber, setAccountNumber] = useState('')
   const [file, setFile] = useState(null)
   const [licenseFile, setLicenseFile] = useState(null)
   const [msg, setMsg] = useState('')
   const [saving, setSaving] = useState(false)
-  const [imageError, setImageError] = useState(false)
+  const [imgKey, setImgKey] = useState(0) // bump to force <img> reload after upload
 
-  // Sync form fields whenever the server data changes (after save or refresh)
+  // Sync form fields from server data whenever currentUser changes
   useEffect(() => {
     if (!currentUser) return
     setName(currentUser.name || '')
-    setPharmacyDisplayName(currentUser.pharmacyDisplayName || currentUser.name || '')
     setLocation(currentUser.location || '')
     setLocationLat(currentUser.locationLat ?? '')
     setLocationLng(currentUser.locationLng ?? '')
-    setImageError(false)
-  }, [currentUser?.name, currentUser?.location, currentUser?.locationLat, currentUser?.locationLng, currentUser?.profileImage, currentUser?.pharmacyDisplayName])
+    setAccountNumber(currentUser.accountNumber || '')
+    setImgKey((k) => k + 1) // force image element to re-fetch new URL
+  }, [
+    currentUser?.name,
+    currentUser?.location,
+    currentUser?.locationLat,
+    currentUser?.locationLng,
+    currentUser?.accountNumber,
+    currentUser?.profileImage,
+  ])
 
+  // Load fresh data from server on mount
   useEffect(() => { refreshProfile() }, [])
 
   if (authLoading) return <section className="form-panel form-panel--wide"><p className="form-hint">Loading profile...</p></section>
   if (!currentUser) return <section className="form-panel form-panel--wide"><p className="form-hint">Profile not found. Please login again.</p></section>
 
-  // Pharmacy profile completeness check — name and location are required for checkout to work
   const profileIncomplete = isPharmacy && (!currentUser.name?.trim() || !currentUser.location?.trim())
+
+  const openEdit = () => {
+    // Reset form to current server values before opening
+    setName(currentUser.name || '')
+    setLocation(currentUser.location || '')
+    setLocationLat(currentUser.locationLat ?? '')
+    setLocationLng(currentUser.locationLng ?? '')
+    setAccountNumber(currentUser.accountNumber || '')
+    setFile(null)
+    setLicenseFile(null)
+    setMsg('')
+    setEdit(true)
+  }
+
+  const cancelEdit = () => {
+    setEdit(false)
+    setMsg('')
+    setFile(null)
+    setLicenseFile(null)
+  }
 
   const save = async (e) => {
     e.preventDefault()
     setSaving(true)
     setMsg('')
     const r = await updateProfile({
-      name: isPharmacy ? (pharmacyDisplayName.trim() || name.trim()) : name,
+      name: name.trim(),
       profileFile: file,
       location: isPharmacy ? location : undefined,
       locationLat: isPharmacy ? locationLat : undefined,
       locationLng: isPharmacy ? locationLng : undefined,
+      accountNumber: isPharmacy ? accountNumber : undefined,
     })
     if (!r.ok) {
       setSaving(false)
@@ -546,15 +605,15 @@ function Profile() {
         return setMsg(lr.message)
       }
       setMsg(lr.message || 'Profile saved.')
-      setLicenseFile(null)
     } else {
       setMsg('Profile saved.')
     }
     setFile(null)
+    setLicenseFile(null)
     setSaving(false)
-    // Refresh from server first, then close edit mode so the form shows fresh data
-    await refreshProfile()
     setEdit(false)
+    // refreshProfile is called to get the latest data including new image URL
+    await refreshProfile()
   }
 
   const fillCurrentLocation = () => {
@@ -570,108 +629,154 @@ function Profile() {
     )
   }
 
+  const avatarSrc = profileImageSrc(currentUser.profileImage)
+
   return (
     <section className="form-panel form-panel--wide profile-card">
-      {/* Incomplete profile banner for pharmacies */}
+      {/* Incomplete profile warning */}
       {profileIncomplete && !edit ? (
         <div className="profile-incomplete-banner" role="alert">
-          <span>⚠️ Your pharmacy profile is incomplete.</span>
-          <span>Customers cannot checkout until you set your <strong>pharmacy name</strong> and <strong>location</strong>.</span>
-          <button type="button" className="btn btn--primary btn--sm" onClick={() => setEdit(true)}>Complete profile now</button>
+          <span>⚠️ Profile incomplete — customers cannot checkout until you set your <strong>pharmacy name</strong>, <strong>location</strong>, and <strong>account number</strong>.</span>
+          <button type="button" className="btn btn--primary btn--sm" onClick={openEdit}>Complete profile ✎</button>
         </div>
       ) : null}
 
+      {/* Header: avatar + summary */}
       <div className="profile-card__header">
         <div className="profile-avatar-wrap">
           <img
+            key={imgKey}
             className="profile-avatar"
-            src={imageError ? fallbackProfileImage : profileImageSrc(currentUser.profileImage)}
-            alt="profile"
-            onError={() => setImageError(true)}
+            src={avatarSrc}
+            alt="Profile"
+            onError={(e) => { e.currentTarget.src = fallbackProfileImage }}
           />
           <button
             type="button"
             className="profile-avatar-edit"
             aria-label={edit ? 'Cancel editing' : 'Edit profile'}
             title={edit ? 'Cancel' : 'Edit profile'}
-            onClick={() => { setEdit((p) => !p); setMsg('') }}
+            onClick={edit ? cancelEdit : openEdit}
           >✎</button>
         </div>
-        <div>
-          <h2>{isPharmacy ? (currentUser.name || 'Pharmacy') : 'Profile'}</h2>
+        <div className="profile-card__info">
+          <h2 className="profile-card__name">{currentUser.name || '—'}</h2>
           <p className="form-hint">{currentUser.email}</p>
           {isPharmacy ? <p className="form-hint">Status: <strong>{currentUser.pharmacyApprovalStatus}</strong></p> : null}
-          {isPharmacy && currentUser.location ? <p className="form-hint">📍 {currentUser.location}</p> : null}
         </div>
       </div>
 
-      <form onSubmit={save}>
-        {isPharmacy ? (
+      {/* View mode — show all saved values clearly */}
+      {!edit ? (
+        <dl className="profile-view">
+          <div className="profile-view__row">
+            <dt>{isPharmacy ? 'Pharmacy name' : 'Full name'}</dt>
+            <dd>{currentUser.name || <em>Not set</em>}</dd>
+          </div>
+          {isPharmacy ? (
+            <>
+              <div className="profile-view__row">
+                <dt>Location</dt>
+                <dd>{currentUser.location || <em>Not set</em>}</dd>
+              </div>
+              {hasCoords(currentUser.locationLat, currentUser.locationLng) ? (
+                <div className="profile-view__row">
+                  <dt>GPS</dt>
+                  <dd>{Number(currentUser.locationLat).toFixed(5)}, {Number(currentUser.locationLng).toFixed(5)}</dd>
+                </div>
+              ) : null}
+              <div className="profile-view__row">
+                <dt>Account number</dt>
+                <dd>{currentUser.accountNumber || <em>Not set — customers need this to send payment</em>}</dd>
+              </div>
+            </>
+          ) : null}
+          <div className="profile-view__row">
+            <dt>Profile picture</dt>
+            <dd><img src={avatarSrc} key={imgKey} alt="Profile" className="profile-view__thumb" onError={(e) => { e.currentTarget.src = fallbackProfileImage }} /></dd>
+          </div>
+        </dl>
+      ) : null}
+
+      {/* Edit form */}
+      {edit ? (
+        <form onSubmit={save} className="profile-edit-form">
           <div className="form-group">
-            <label htmlFor="profile-pharmacy-name">Pharmacy display name</label>
+            <label htmlFor="profile-name">{isPharmacy ? 'Pharmacy name' : 'Full name'}</label>
             <input
-              id="profile-pharmacy-name"
-              value={pharmacyDisplayName}
-              disabled={!edit}
-              onChange={(e) => setPharmacyDisplayName(e.target.value)}
-              placeholder="e.g. Hawassa Central Pharmacy"
-              required={edit}
+              id="profile-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              placeholder={isPharmacy ? 'e.g. Hawassa Central Pharmacy' : 'Your full name'}
             />
-            <p className="form-hint form-hint--field">This name appears on all your medicines and orders.</p>
+            {isPharmacy ? <p className="form-hint form-hint--field">This name appears on all your medicines and orders.</p> : null}
           </div>
-        ) : (
-          <div className="form-group">
-            <label htmlFor="profile-name">Full name</label>
-            <input id="profile-name" value={name} disabled={!edit} onChange={(e) => setName(e.target.value)} />
-          </div>
-        )}
 
-        {isPharmacy ? (
-          <div className="form-group">
-            <label htmlFor="profile-location">Pharmacy location (Hawassa)</label>
-            <textarea
-              id="profile-location"
-              rows={3}
-              value={location}
-              disabled={!edit}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="e.g. Tabor sub-city, near Hawassa University"
+          {isPharmacy ? (
+            <>
+              <div className="form-group">
+                <label htmlFor="profile-location">Pharmacy location (Hawassa)</label>
+                <textarea
+                  id="profile-location"
+                  rows={3}
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="e.g. Tabor sub-city, near Hawassa University"
+                />
+                <button type="button" className="btn btn--outline btn--sm" style={{ marginTop: '0.5rem' }} onClick={fillCurrentLocation}>
+                  📍 Use current GPS location
+                </button>
+                {hasCoords(locationLat, locationLng)
+                  ? <p className="form-hint">GPS: {Number(locationLat).toFixed(5)}, {Number(locationLng).toFixed(5)}</p>
+                  : <p className="form-hint">GPS coordinates help customers find the nearest pharmacy.</p>}
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="profile-account">Bank / account number</label>
+                <input
+                  id="profile-account"
+                  value={accountNumber}
+                  onChange={(e) => setAccountNumber(e.target.value)}
+                  placeholder="e.g. CBE 1000123456789"
+                />
+                <p className="form-hint form-hint--field">Customers who pay manually need this to send money before uploading a receipt.</p>
+              </div>
+            </>
+          ) : null}
+
+          <FileInput label="Profile picture" fileName={file?.name} onChange={setFile} />
+
+          {isPharmacy ? (
+            <FileInput
+              label="Replace licence photo"
+              fileName={licenseFile?.name}
+              onChange={setLicenseFile}
+              hint="Licence photos are only visible to administrators. Updating will require re-approval."
             />
-            {edit ? (
-              <button type="button" className="btn btn--outline btn--sm" style={{ marginTop: '0.5rem' }} onClick={fillCurrentLocation}>
-                📍 Use current GPS location
-              </button>
-            ) : null}
-            {hasCoords(locationLat, locationLng)
-              ? <p className="form-hint">GPS: {Number(locationLat).toFixed(5)}, {Number(locationLng).toFixed(5)}</p>
-              : <p className="form-hint">GPS coordinates help customers find the nearest pharmacy.</p>}
-          </div>
-        ) : null}
+          ) : null}
 
-        {edit ? <FileInput label="Profile picture" fileName={file?.name} onChange={setFile} /> : null}
-        {edit && isPharmacy ? (
-          <FileInput
-            label="Replace licence photo"
-            fileName={licenseFile?.name}
-            onChange={setLicenseFile}
-            hint="Licence photos can only be viewed by administrators. Updating will require re-approval."
-          />
-        ) : null}
-
-        {edit ? (
           <div className="profile-form-actions">
             <button className="btn btn--primary" type="submit" disabled={saving}>
               {saving ? 'Saving...' : 'Save profile'}
             </button>
-            <button type="button" className="btn btn--outline" disabled={saving} onClick={() => { setEdit(false); setMsg('') }}>
+            <button type="button" className="btn btn--outline" disabled={saving} onClick={cancelEdit}>
               Cancel
             </button>
           </div>
-        ) : null}
-      </form>
+        </form>
+      ) : null}
 
       {msg ? <p className="form-hint profile-save-msg" role="status">{msg}</p> : null}
-      <button type="button" className="btn btn--danger" style={{ marginTop: '1.5rem' }} onClick={async () => { await logout(); nav('/login') }}>Sign out</button>
+
+      <button
+        type="button"
+        className="btn btn--danger"
+        style={{ marginTop: '1.5rem' }}
+        onClick={async () => { await logout(); nav('/login') }}
+      >
+        Sign out
+      </button>
     </section>
   )
 }
@@ -808,12 +913,28 @@ function Inventory({ inventory, onUpdate, onDelete }) {
 
 function OrderReceipt({ src, orderId }) {
   const imageSrc = uploadImageSrc(src)
-  if (!imageSrc) return <p className="form-hint">No receipt uploaded for this order.</p>
+  const [imgError, setImgError] = useState(false)
+  if (!imageSrc) return <p className="form-hint order-receipt__missing">No receipt uploaded for this order.</p>
   return (
-    <a className="order-receipt" href={imageSrc} target="_blank" rel="noreferrer">
-      <img src={imageSrc} alt={`Receipt for order ${String(orderId).slice(-6)}`} loading="lazy" />
-      <span>View receipt</span>
-    </a>
+    <div className="order-receipt">
+      <p className="order-receipt__label">📄 Payment receipt</p>
+      {!imgError ? (
+        <a href={imageSrc} target="_blank" rel="noreferrer" className="order-receipt__link">
+          <img
+            src={imageSrc}
+            alt={`Receipt for order ${String(orderId).slice(-6)}`}
+            className="order-receipt__img"
+            loading="lazy"
+            onError={() => setImgError(true)}
+          />
+          <span className="order-receipt__view">Click to view full size ↗</span>
+        </a>
+      ) : (
+        <a href={imageSrc} target="_blank" rel="noreferrer" className="btn btn--outline btn--sm">
+          Open receipt ↗
+        </a>
+      )}
+    </div>
   )
 }
 
@@ -827,9 +948,51 @@ function PharmacyOrders({ orders, onApprove, onReject }) {
   return (
     <>
       <h1 className="dash-title">Orders</h1>
-      {pendingOrdersCount > 0 ? <p className="form-hint">New orders waiting: {pendingOrdersCount}</p> : null}
+      {pendingOrdersCount > 0 ? <p className="form-hint">New orders waiting: <strong>{pendingOrdersCount}</strong></p> : null}
       {!visibleOrders.length ? <p className="form-hint">No orders to show.</p> : null}
-      <div className="card-grid card-grid--medicines">{visibleOrders.map((o) => { const hasPendingItems = o.items.some((item) => item.status === 'pending'); return <article className="form-panel pharmacy-order-card" key={o.id}><div className="pharmacy-order-card__top"><h2>Order #{String(o.id).slice(-6)}</h2>{!hasPendingItems ? <button type="button" className="pharmacy-order-card__close" aria-label="Remove old order" onClick={() => dismissOrder(o.id)}>x</button> : null}</div><p className="form-hint">Status: {o.status}</p><p className="form-hint">Payment: {o.paymentMethod === 'chapa' ? 'Chapa Demo' : 'Checkout'}</p>{o.chapaAccount ? <p className="form-hint">Chapa account: {o.chapaAccount}</p> : null}<OrderReceipt src={o.receiptImage} orderId={o.id} />{o.items.map((i) => <p key={`${i.medicineId}-${i.status}`}>{i.medicineName} - Qty {i.quantity} - {i.status}</p>)}{hasPendingItems ? <div className="table-actions"><button className="btn btn--primary btn--sm" disabled={busy === o.id} onClick={() => run(onApprove, o.id)}>Approve</button><button className="btn btn--danger btn--sm btn--danger-solid" disabled={busy === o.id} onClick={() => run(onReject, o.id)}>Decline</button></div> : null}</article> })}</div>
+      <div className="card-grid card-grid--medicines">
+        {visibleOrders.map((o) => {
+          const hasPendingItems = o.items.some((item) => item.status === 'pending')
+          return (
+            <article className="form-panel pharmacy-order-card" key={o.id}>
+              <div className="pharmacy-order-card__top">
+                <h2>Order #{String(o.id).slice(-6)}</h2>
+                {!hasPendingItems ? (
+                  <button type="button" className="pharmacy-order-card__close" aria-label="Remove old order" onClick={() => dismissOrder(o.id)}>✕</button>
+                ) : null}
+              </div>
+
+              <div className="pharmacy-order-card__meta">
+                <p><span className="order-meta-label">Status:</span> {o.status}</p>
+                <p><span className="order-meta-label">Payment:</span> {o.paymentMethod === 'chapa' ? 'Chapa Demo' : 'Manual transfer'}</p>
+                {o.chapaAccount ? <p><span className="order-meta-label">Chapa account:</span> {o.chapaAccount}</p> : null}
+                {o.customer?.name ? <p><span className="order-meta-label">Customer:</span> {o.customer.name}</p> : null}
+                {o.customer?.email ? <p><span className="order-meta-label">Email:</span> {o.customer.email}</p> : null}
+              </div>
+
+              {/* Receipt — shown prominently so pharmacy can verify payment */}
+              <OrderReceipt src={o.receiptImage} orderId={o.id} />
+
+              <div className="pharmacy-order-card__items">
+                {o.items.map((i) => (
+                  <div key={`${i.medicineId}-${i.status}`} className="pharmacy-order-card__item">
+                    <span>{i.medicineName}</span>
+                    <span>Qty: {i.quantity}</span>
+                    <span className={`order-item-status order-item-status--${i.status}`}>{i.status}</span>
+                  </div>
+                ))}
+              </div>
+
+              {hasPendingItems ? (
+                <div className="table-actions">
+                  <button className="btn btn--primary btn--sm" disabled={busy === o.id} onClick={() => run(onApprove, o.id)}>Approve</button>
+                  <button className="btn btn--danger btn--sm btn--danger-solid" disabled={busy === o.id} onClick={() => run(onReject, o.id)}>Decline</button>
+                </div>
+              ) : null}
+            </article>
+          )
+        })}
+      </div>
     </>
   )
 }

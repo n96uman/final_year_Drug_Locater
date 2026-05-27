@@ -1924,23 +1924,150 @@ main {
   cursor: pointer;
 }
 
-.order-receipt {
-  display: block;
-  margin: 0.75rem 0 1rem;
-  color: var(--color-primary);
-  font-weight: 700;
-  text-decoration: none;
+.pharmacy-order-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  margin: 0.5rem 0;
 }
 
-.order-receipt img {
+.pharmacy-order-card__meta p { margin: 0; }
+
+.order-meta-label {
+  font-weight: 600;
+  color: var(--color-text);
+  margin-right: 0.25rem;
+}
+
+.pharmacy-order-card__items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.75rem 0;
+  font-size: 0.9rem;
+}
+
+.pharmacy-order-card__item {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.order-item-status {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  text-transform: capitalize;
+}
+
+.order-item-status--pending  { background: #fef9c3; color: #854d0e; }
+.order-item-status--approved { background: #dcfce7; color: #166534; }
+.order-item-status--rejected { background: #fee2e2; color: #991b1b; }
+
+/* ----- Order receipt (pharmacy orders view) ----- */
+.order-receipt {
+  margin: 0.75rem 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+[data-theme="dark"] .order-receipt { background: #1a2540; }
+
+.order-receipt__label {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.order-receipt__link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.order-receipt__img {
   display: block;
   width: 100%;
-  max-height: 220px;
+  max-height: 260px;
   object-fit: contain;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
   background: #f8fafc;
-  margin-bottom: 0.5rem;
+}
+
+[data-theme="dark"] .order-receipt__img { background: #1a2540; }
+
+.order-receipt__view {
+  display: block;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--color-primary);
+  font-weight: 600;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+}
+
+.order-receipt__missing {
+  padding: 0.5rem 0;
+  font-style: italic;
+}
+
+/* ----- Pharmacy account number box in cart ----- */
+.pharmacy-accounts-box {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: var(--radius);
+  padding: 0.85rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+[data-theme="dark"] .pharmacy-accounts-box {
+  background: #0c1f35;
+  border-color: #1e4a6e;
+}
+
+.pharmacy-accounts-box__title {
+  margin: 0 0 0.6rem;
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+
+.pharmacy-accounts-box__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: baseline;
+  padding: 0.35rem 0;
+  border-top: 1px solid #e0f2fe;
+}
+
+[data-theme="dark"] .pharmacy-accounts-box__row { border-color: #1e4a6e; }
+
+.pharmacy-accounts-box__name {
+  font-weight: 600;
+  min-width: 8rem;
+}
+
+.pharmacy-accounts-box__number {
+  font-family: monospace;
+  font-size: 1rem;
+  color: var(--color-primary);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.pharmacy-accounts-box__missing {
+  font-style: italic;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
 }
 
 .profile-card {
@@ -1951,7 +2078,67 @@ main {
   display: flex;
   align-items: center;
   gap: 1rem;
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.profile-card__info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.profile-card__name {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+/* ----- Profile view mode (read-only dl) ----- */
+.profile-view {
+  margin: 0 0 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.profile-view__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.9375rem;
+}
+
+.profile-view__row:last-child { border-bottom: none; }
+
+.profile-view__row dt {
+  font-weight: 600;
+  min-width: 9rem;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.profile-view__row dd {
+  margin: 0;
+  flex: 1;
+  word-break: break-word;
+}
+
+.profile-view__thumb {
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid var(--color-border);
+}
+
+.profile-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 .profile-avatar-wrap {
