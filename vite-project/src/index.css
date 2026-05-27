@@ -1984,6 +1984,45 @@ main {
   box-shadow: var(--shadow-sm);
 }
 
+/* Incomplete profile warning banner */
+.profile-incomplete-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  background: #fff7ed;
+  border: 1px solid #f97316;
+  border-radius: var(--radius);
+  padding: 0.85rem 1rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.9rem;
+  color: #9a3412;
+}
+
+[data-theme="dark"] .profile-incomplete-banner {
+  background: #2d1a0a;
+  border-color: #c2410c;
+  color: #fdba74;
+}
+
+.profile-incomplete-banner span {
+  flex: 1;
+  min-width: 12rem;
+}
+
+/* Save / Cancel button row */
+.profile-form-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.profile-save-msg {
+  margin-top: 0.75rem;
+  font-weight: 500;
+}
+
 .file-input {
   display: flex;
   flex-wrap: wrap;

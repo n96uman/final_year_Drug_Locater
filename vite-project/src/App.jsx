@@ -495,6 +495,7 @@ function Profile() {
   const isPharmacy = currentUser?.role === 'pharmacy'
   const [edit, setEdit] = useState(false)
   const [name, setName] = useState(currentUser?.name || '')
+  const [pharmacyDisplayName, setPharmacyDisplayName] = useState(currentUser?.pharmacyDisplayName || currentUser?.name || '')
   const [location, setLocation] = useState(currentUser?.location || '')
   const [locationLat, setLocationLat] = useState(currentUser?.locationLat ?? '')
   const [locationLng, setLocationLng] = useState(currentUser?.locationLng ?? '')
@@ -503,21 +504,37 @@ function Profile() {
   const [msg, setMsg] = useState('')
   const [saving, setSaving] = useState(false)
   const [imageError, setImageError] = useState(false)
-  useEffect(() => { refreshProfile() }, [])
+
+  // Sync form fields whenever the server data changes (after save or refresh)
   useEffect(() => {
-    setName(currentUser?.name || '')
-    setLocation(currentUser?.location || '')
-    setLocationLat(currentUser?.locationLat ?? '')
-    setLocationLng(currentUser?.locationLng ?? '')
+    if (!currentUser) return
+    setName(currentUser.name || '')
+    setPharmacyDisplayName(currentUser.pharmacyDisplayName || currentUser.name || '')
+    setLocation(currentUser.location || '')
+    setLocationLat(currentUser.locationLat ?? '')
+    setLocationLng(currentUser.locationLng ?? '')
     setImageError(false)
-  }, [currentUser?.name, currentUser?.location, currentUser?.locationLat, currentUser?.locationLng, currentUser?.profileImage])
+  }, [currentUser?.name, currentUser?.location, currentUser?.locationLat, currentUser?.locationLng, currentUser?.profileImage, currentUser?.pharmacyDisplayName])
+
+  useEffect(() => { refreshProfile() }, [])
+
   if (authLoading) return <section className="form-panel form-panel--wide"><p className="form-hint">Loading profile...</p></section>
   if (!currentUser) return <section className="form-panel form-panel--wide"><p className="form-hint">Profile not found. Please login again.</p></section>
+
+  // Pharmacy profile completeness check — name and location are required for checkout to work
+  const profileIncomplete = isPharmacy && (!currentUser.name?.trim() || !currentUser.location?.trim())
+
   const save = async (e) => {
     e.preventDefault()
     setSaving(true)
     setMsg('')
-    const r = await updateProfile({ name, profileFile: file, location: isPharmacy ? location : undefined, locationLat: isPharmacy ? locationLat : undefined, locationLng: isPharmacy ? locationLng : undefined })
+    const r = await updateProfile({
+      name: isPharmacy ? (pharmacyDisplayName.trim() || name.trim()) : name,
+      profileFile: file,
+      location: isPharmacy ? location : undefined,
+      locationLat: isPharmacy ? locationLat : undefined,
+      locationLng: isPharmacy ? locationLng : undefined,
+    })
     if (!r.ok) {
       setSaving(false)
       return setMsg(r.message)
@@ -528,59 +545,133 @@ function Profile() {
         setSaving(false)
         return setMsg(lr.message)
       }
-      setMsg(lr.message || 'Saved')
+      setMsg(lr.message || 'Profile saved.')
       setLicenseFile(null)
     } else {
-      setMsg('Saved')
+      setMsg('Profile saved.')
     }
     setFile(null)
-    setEdit(false)
     setSaving(false)
+    // Refresh from server first, then close edit mode so the form shows fresh data
     await refreshProfile()
+    setEdit(false)
   }
+
   const fillCurrentLocation = () => {
     if (!navigator.geolocation) return setMsg('Location is not supported in this browser.')
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setLocationLat(pos.coords.latitude)
         setLocationLng(pos.coords.longitude)
-        setMsg('Coordinates added.')
+        setMsg('GPS coordinates captured.')
       },
       () => setMsg('Could not get location. Please allow location access.'),
       { enableHighAccuracy: true, timeout: 10000 }
     )
   }
+
   return (
     <section className="form-panel form-panel--wide profile-card">
+      {/* Incomplete profile banner for pharmacies */}
+      {profileIncomplete && !edit ? (
+        <div className="profile-incomplete-banner" role="alert">
+          <span>⚠️ Your pharmacy profile is incomplete.</span>
+          <span>Customers cannot checkout until you set your <strong>pharmacy name</strong> and <strong>location</strong>.</span>
+          <button type="button" className="btn btn--primary btn--sm" onClick={() => setEdit(true)}>Complete profile now</button>
+        </div>
+      ) : null}
+
       <div className="profile-card__header">
         <div className="profile-avatar-wrap">
-          <img className="profile-avatar" src={imageError ? fallbackProfileImage : profileImageSrc(currentUser.profileImage)} alt="profile" onError={() => setImageError(true)} />
-          <button type="button" className="profile-avatar-edit" aria-label="Edit profile" onClick={() => setEdit((p) => !p)}>✎</button>
+          <img
+            className="profile-avatar"
+            src={imageError ? fallbackProfileImage : profileImageSrc(currentUser.profileImage)}
+            alt="profile"
+            onError={() => setImageError(true)}
+          />
+          <button
+            type="button"
+            className="profile-avatar-edit"
+            aria-label={edit ? 'Cancel editing' : 'Edit profile'}
+            title={edit ? 'Cancel' : 'Edit profile'}
+            onClick={() => { setEdit((p) => !p); setMsg('') }}
+          >✎</button>
         </div>
         <div>
-          <h2>Profile</h2>
+          <h2>{isPharmacy ? (currentUser.name || 'Pharmacy') : 'Profile'}</h2>
           <p className="form-hint">{currentUser.email}</p>
-          {isPharmacy ? <p className="form-hint">Status: {currentUser.pharmacyApprovalStatus}</p> : null}
+          {isPharmacy ? <p className="form-hint">Status: <strong>{currentUser.pharmacyApprovalStatus}</strong></p> : null}
+          {isPharmacy && currentUser.location ? <p className="form-hint">📍 {currentUser.location}</p> : null}
         </div>
       </div>
+
       <form onSubmit={save}>
-        <div className="form-group"><label>Name</label><input value={name} disabled={!edit} onChange={(e) => setName(e.target.value)} /></div>
+        {isPharmacy ? (
+          <div className="form-group">
+            <label htmlFor="profile-pharmacy-name">Pharmacy display name</label>
+            <input
+              id="profile-pharmacy-name"
+              value={pharmacyDisplayName}
+              disabled={!edit}
+              onChange={(e) => setPharmacyDisplayName(e.target.value)}
+              placeholder="e.g. Hawassa Central Pharmacy"
+              required={edit}
+            />
+            <p className="form-hint form-hint--field">This name appears on all your medicines and orders.</p>
+          </div>
+        ) : (
+          <div className="form-group">
+            <label htmlFor="profile-name">Full name</label>
+            <input id="profile-name" value={name} disabled={!edit} onChange={(e) => setName(e.target.value)} />
+          </div>
+        )}
+
         {isPharmacy ? (
           <div className="form-group">
             <label htmlFor="profile-location">Pharmacy location (Hawassa)</label>
-            <textarea id="profile-location" rows={3} value={location} disabled={!edit} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. Tabor sub-city, near Hawassa University" />
-            {edit ? <button type="button" className="btn btn--outline btn--sm" onClick={fillCurrentLocation}>Use current GPS location</button> : null}
-            {hasCoords(locationLat, locationLng) ? <p className="form-hint">GPS: {Number(locationLat).toFixed(5)}, {Number(locationLng).toFixed(5)}</p> : <p className="form-hint">GPS coordinates help customers find the nearest pharmacy.</p>}
+            <textarea
+              id="profile-location"
+              rows={3}
+              value={location}
+              disabled={!edit}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="e.g. Tabor sub-city, near Hawassa University"
+            />
+            {edit ? (
+              <button type="button" className="btn btn--outline btn--sm" style={{ marginTop: '0.5rem' }} onClick={fillCurrentLocation}>
+                📍 Use current GPS location
+              </button>
+            ) : null}
+            {hasCoords(locationLat, locationLng)
+              ? <p className="form-hint">GPS: {Number(locationLat).toFixed(5)}, {Number(locationLng).toFixed(5)}</p>
+              : <p className="form-hint">GPS coordinates help customers find the nearest pharmacy.</p>}
           </div>
         ) : null}
+
         {edit ? <FileInput label="Profile picture" fileName={file?.name} onChange={setFile} /> : null}
         {edit && isPharmacy ? (
-          <FileInput label="Replace licence photo" fileName={licenseFile?.name} onChange={setLicenseFile} hint="Licence photos can only be viewed by administrators. Updating may require re-approval." />
+          <FileInput
+            label="Replace licence photo"
+            fileName={licenseFile?.name}
+            onChange={setLicenseFile}
+            hint="Licence photos can only be viewed by administrators. Updating will require re-approval."
+          />
         ) : null}
-        {edit ? <button className="btn btn--primary" disabled={saving}>{saving ? 'Saving...' : 'Save profile'}</button> : null}
+
+        {edit ? (
+          <div className="profile-form-actions">
+            <button className="btn btn--primary" type="submit" disabled={saving}>
+              {saving ? 'Saving...' : 'Save profile'}
+            </button>
+            <button type="button" className="btn btn--outline" disabled={saving} onClick={() => { setEdit(false); setMsg('') }}>
+              Cancel
+            </button>
+          </div>
+        ) : null}
       </form>
-      <p className="form-hint">{msg}</p>
-      <button type="button" className="btn btn--danger" onClick={async () => { await logout(); nav('/login') }}>Sign out</button>
+
+      {msg ? <p className="form-hint profile-save-msg" role="status">{msg}</p> : null}
+      <button type="button" className="btn btn--danger" style={{ marginTop: '1.5rem' }} onClick={async () => { await logout(); nav('/login') }}>Sign out</button>
     </section>
   )
 }
@@ -651,6 +742,8 @@ function PharmacyLayout({ activeOrdersCount }) {
 }
 
 function DashboardHome({ inventory, orders, weeklyTransactions }) {
+  const { currentUser } = useAuth()
+  const nav = useNavigate()
   const pendingOrders = orders.filter((o) => o.status === 'pending').length
   const approvedOrders = orders.filter((o) => o.status === 'approved').length
   const declinedOrders = orders.filter((o) => o.status === 'rejected').length
@@ -665,9 +758,20 @@ function DashboardHome({ inventory, orders, weeklyTransactions }) {
       return !Number.isNaN(expiry.getTime()) && expiry <= soon
     })
     .sort((a, b) => new Date(a.expiry) - new Date(b.expiry))
+
+  const profileIncomplete = !currentUser?.name?.trim() || !currentUser?.location?.trim()
+
   return (
     <>
       <h1 className="dash-title">Dashboard</h1>
+
+      {profileIncomplete ? (
+        <div className="profile-incomplete-banner" role="alert">
+          <span>⚠️ Your pharmacy profile is incomplete — customers cannot checkout your medicines until you set your <strong>pharmacy name</strong> and <strong>location</strong>.</span>
+          <button type="button" className="btn btn--primary btn--sm" onClick={() => nav('/pharmacy-profile')}>Complete profile ✎</button>
+        </div>
+      ) : null}
+
       <div className="stat-grid"><article className="stat-card"><p className="stat-card__label">Total medicines</p><p className="stat-card__value">{inventory.length}</p></article><article className="stat-card"><p className="stat-card__label">Pending orders</p><p className="stat-card__value">{pendingOrders}</p></article><article className="stat-card"><p className="stat-card__label">Approved orders</p><p className="stat-card__value">{approvedOrders}</p></article><article className="stat-card"><p className="stat-card__label">Declined orders</p><p className="stat-card__value">{declinedOrders}</p></article><article className="stat-card"><p className="stat-card__label">Low stock (&lt; 10)</p><p className="stat-card__value">{inventory.filter((m) => Number(m.quantity) < 10).length}</p></article><article className="stat-card"><p className="stat-card__label">This week transactions</p><p className="stat-card__value">{weeklyTransactions.length}</p><p className="form-hint">{weeklyTransactionTotal} ETB</p></article></div>
       <section className="form-panel form-panel--full cart-history">
         <h2>This week transaction history</h2>
@@ -684,7 +788,8 @@ function DashboardHome({ inventory, orders, weeklyTransactions }) {
 }
 
 function AddMedicine({ onAdd }) {
-  const initial = { name: '', genericName: '', pharmacyName: '', price: '', quantity: '', expiry: '' }
+  const { currentUser } = useAuth()
+  const initial = { name: '', genericName: '', pharmacyName: currentUser?.name || '', price: '', quantity: '', expiry: '' }
   const [f, setF] = useState(initial)
   const [saving, setSaving] = useState(false)
   const submit = async (e) => {
@@ -692,7 +797,7 @@ function AddMedicine({ onAdd }) {
     setSaving(true)
     const ok = await onAdd({ ...f, price: Number(f.price), quantity: Number(f.quantity) })
     setSaving(false)
-    if (ok) setF(initial)
+    if (ok) setF({ ...initial, pharmacyName: currentUser?.name || '' })
   }
   return <><h1 className="dash-title">Add medicine</h1><section className="form-panel form-panel--full"><form onSubmit={submit}><div className="form-grid-2"><div className="form-group"><label>Medicine name</label><input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} required /></div><div className="form-group"><label>Generic name</label><input value={f.genericName} onChange={(e) => setF({ ...f, genericName: e.target.value })} required /></div><div className="form-group"><label>Pharmacy name</label><input value={f.pharmacyName} onChange={(e) => setF({ ...f, pharmacyName: e.target.value })} required /></div><div className="form-group"><label>Price</label><input type="number" min="0" value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} required /></div><div className="form-group"><label>Quantity</label><input type="number" min="0" value={f.quantity} onChange={(e) => setF({ ...f, quantity: e.target.value })} required /></div><div className="form-group"><label>Expiry date</label><input type="date" value={f.expiry} onChange={(e) => setF({ ...f, expiry: e.target.value })} required /></div></div><button className="btn btn--primary" disabled={saving}>{saving ? 'Saving...' : 'Save medicine'}</button></form></section></>
 }
