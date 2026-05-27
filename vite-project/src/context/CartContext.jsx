@@ -6,6 +6,7 @@ const CartContext = createContext(null)
 const KEY = 'dl_cart_state'
 const getId = (i) => i._id || i.id
 const getUserId = (user) => user?._id || user?.id || null
+const getPharmacyKey = (item) => String(item?.createdBy || item?.pharmacyId || item?.pharmacyName || '')
 const countOrderItems = (order) => {
   const items = order?.items || []
   const rejectedReasons = items
@@ -65,13 +66,32 @@ export function CartProvider({ children }) {
     if (cartStatus === 'waiting') return show('Order waiting for approval.')
     const id = getId(m)
     setCartItems((p) => {
+      const newPharmacyKey = getPharmacyKey(m)
+      if (p.length) {
+        const currentPharmacyKey = getPharmacyKey(p[0])
+        if (currentPharmacyKey && newPharmacyKey && currentPharmacyKey !== newPharmacyKey) {
+          show('You can only add medicines from one pharmacy at a time. Checkout or clear cart first.')
+          return p
+        }
+      }
       const ex = p.find((x) => getId(x) === id)
       if (ex) {
         show(`Increased ${m.name} quantity in cart.`)
-        return p.map((x) => getId(x) === id ? { ...x, quantity: x.quantity + 1 } : x)
+        return p.map((x) => getId(x) === id
+          ? {
+            ...x,
+            quantity: x.quantity + 1,
+            pharmacyAccountNumber: m.pharmacyAccountNumber || x.pharmacyAccountNumber || '',
+            createdBy: m.createdBy || x.createdBy,
+          }
+          : x)
       }
       show(`${m.name} added to cart.`)
-      return [...p, { ...m, quantity: 1 }]
+      return [...p, {
+        ...m,
+        quantity: 1,
+        pharmacyAccountNumber: m.pharmacyAccountNumber || '',
+      }]
     })
   }
 

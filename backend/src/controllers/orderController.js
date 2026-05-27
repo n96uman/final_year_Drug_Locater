@@ -60,7 +60,7 @@ const updateOrderTransactions = async (order) => {
 exports.createOrder = async (req, res) => {
   const files = req.files || {}
   const receiptFile = files.receiptImage?.[0]
-  const prescriptionFile = files.prescriptionImage?.[0]
+  const prescriptionFile = files.prescriptionImage?.[0] || files.prescriptionFile?.[0]
   const paymentMethod = req.body.paymentMethod === 'chapa' ? 'chapa' : 'none'
   const requestedItems = bodyJson(req.body.items, [])
   const receiptPath = receiptFile ? sanitizeUploadPath(`/uploads/${receiptFile.filename}`) : ''
@@ -117,7 +117,7 @@ exports.getMyOrders = async (req, res) => {
     orders: orders.map((order) => ({
       ...order.toObject(),
       receiptImage: img(req, order.receiptImage),
-      prescriptionImage: img(req, order.prescriptionImage),
+      prescriptionImage: img(req, order.prescriptionImage || order.prescription),
     })),
   })
 }
@@ -135,7 +135,7 @@ exports.getPharmacyOrders = async (req, res) => {
       paymentStatus: order.paymentStatus,
       chapaAccount: order.chapaAccount,
       receiptImage: img(req, order.receiptImage),
-      prescriptionImage: img(req, order.prescriptionImage),
+      prescriptionImage: img(req, order.prescriptionImage || order.prescription),
       items: order.items.filter((item) => belongs(item, id, req.user.name)),
     })),
   })

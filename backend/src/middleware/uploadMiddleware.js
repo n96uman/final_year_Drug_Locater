@@ -49,6 +49,7 @@ exports.uploadReceiptImage = imageMulter.single('receiptImage')
 exports.uploadOrderImages = imageMulter.fields([
   { name: 'receiptImage', maxCount: 1 },
   { name: 'prescriptionImage', maxCount: 1 },
+  { name: 'prescriptionFile', maxCount: 1 },
 ])
 exports.uploadRegisterFiles = imageMulter.fields([
   { name: 'profileImage', maxCount: 1 },

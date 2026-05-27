@@ -1158,8 +1158,8 @@ function PharmacyOrders({ orders, onApprove, onReject }) {
                 {o.customer?.email ? <p><span className="order-meta-label">Email:</span> {o.customer.email}</p> : null}
               </div>
 
-              <OrderImage src={o.receiptImage} orderId={o.id} label="📄 Payment receipt" emptyText="No receipt uploaded for this order." />
-              <OrderImage src={o.prescriptionImage} orderId={o.id} label="🩺 Prescription image" emptyText="No prescription image uploaded." />
+              <OrderImage src={o.receiptImage || o.receipt} orderId={o.id} label="📄 Payment receipt" emptyText="No receipt uploaded for this order." />
+              <OrderImage src={o.prescriptionImage || o.prescription || o.prescriptionPhoto} orderId={o.id} label="🩺 Prescription image" emptyText="No prescription image uploaded." />
 
               <div className="pharmacy-order-card__items">
                 {o.items.map((i) => (
@@ -1293,19 +1293,26 @@ function AdminPage() {
     if (!token) return
     setPharmLoading(true)
     setPharmError('')
-    try {
-      const [statsRes, listRes] = await Promise.all([
-        adminApi.stats(token),
-        adminApi.listPharmacies(pharmTab, token),
-      ])
-      setStats(statsRes.stats || null)
-      setPharmList(listRes.pharmacies || [])
-    } catch (e) {
-      setPharmError(e.message || 'Could not load data.')
-      setPharmList([])
-    } finally {
-      setPharmLoading(false)
+    const [statsResult, listResult] = await Promise.allSettled([
+      adminApi.stats(token),
+      adminApi.listPharmacies(pharmTab, token),
+    ])
+
+    if (statsResult.status === 'fulfilled') {
+      setStats(statsResult.value.stats || null)
     }
+
+    if (listResult.status === 'fulfilled') {
+      setPharmList(listResult.value.pharmacies || [])
+      if (statsResult.status === 'rejected') {
+        setPharmError('Pharmacy list loaded, but stats could not be refreshed.')
+      }
+    } else {
+      setPharmList([])
+      setPharmError(listResult.reason?.message || `Failed to reload ${pharmTab} pharmacies.`)
+    }
+
+    setPharmLoading(false)
   }
 
   const loadAccounts = async () => {
@@ -1679,7 +1686,7 @@ export default function App() {
           pharmacyLocation: m.pharmacyLocation || '',
           pharmacyLat: m.pharmacyLat ?? null,
           pharmacyLng: m.pharmacyLng ?? null,
-          pharmacyAccountNumber: m.pharmacyAccountNumber || '',
+          pharmacyAccountNumber: m.pharmacyAccountNumber || m.createdBy?.accountNumber || '',
           expiry: m.expiry || '',
           price: Number(m.price) || 0,
           quantity: Number(m.quantity) || 0,
