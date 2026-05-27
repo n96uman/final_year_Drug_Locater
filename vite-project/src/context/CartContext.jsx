@@ -8,12 +8,16 @@ const getId = (i) => i._id || i.id
 const getUserId = (user) => user?._id || user?.id || null
 const countOrderItems = (order) => {
   const items = order?.items || []
+  const rejectedReasons = items
+    .filter((i) => i.status === 'rejected' && String(i.rejectionReason || '').trim())
+    .map((i) => `${i.medicineName || 'Medicine'}: ${String(i.rejectionReason || '').trim()}`)
   return {
     total: items.length,
     approved: items.filter((i) => i.status === 'approved').length,
     rejected: items.filter((i) => i.status === 'rejected').length,
     pending: items.filter((i) => i.status === 'pending').length,
     status: order?.status || 'pending',
+    rejectedReasons,
     updatedAt: new Date().toISOString(),
   }
 }
@@ -83,7 +87,7 @@ export function CartProvider({ children }) {
     setCartItems((p) => p.filter((x) => getId(x) !== id))
   }
 
-  const checkout = async (paymentMethod = 'none', receiptFile = null, chapaDemo = {}) => {
+  const checkout = async (paymentMethod = 'none', receiptFile = null, prescriptionFile = null, chapaDemo = {}) => {
     if (cartStatus === 'waiting') return { ok: false }
     if (!token || !currentUser || currentUser.role !== 'customer' || cartItems.length === 0) return { ok: false }
     if (paymentMethod !== 'chapa' && !receiptFile) {
@@ -104,7 +108,16 @@ export function CartProvider({ children }) {
       const delivery = 50
       const total = subtotal + delivery
       const items = cartItems.map((i) => ({ medicineId: getId(i), medicineName: i.name, pharmacyName: i.pharmacyName, price: i.price, quantity: i.quantity }))
-      const r = await orderApi.checkout({ items, subtotal, delivery, total, paymentMethod, receiptFile, ...chapaDemo }, token)
+      const r = await orderApi.checkout({
+        items,
+        subtotal,
+        delivery,
+        total,
+        paymentMethod,
+        receiptFile,
+        prescriptionFile,
+        ...chapaDemo,
+      }, token)
       setCartStatus('waiting')
       setPendingOrderId(r.order?._id || r.order?.id || null)
       setOrderHistory(countOrderItems(r.order))

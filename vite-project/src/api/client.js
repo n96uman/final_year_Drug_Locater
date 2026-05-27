@@ -59,7 +59,7 @@ export const medicineApi = {
 export const orderApi = {
     listPharmacyTransactions: (token, period = '') => apiFetch(`/orders/pharmacy/transactions${period ? `?period=${period}` : ''}`, { token }),
   checkout: (payload, token) => {
-    if (payload?.receiptFile) {
+    if (payload?.receiptFile || payload?.prescriptionFile) {
       const formData = new FormData()
       formData.append('items', JSON.stringify(payload.items || []))
       formData.append('subtotal', String(payload.subtotal || 0))
@@ -68,7 +68,8 @@ export const orderApi = {
       formData.append('paymentMethod', payload.paymentMethod || 'none')
       formData.append('chapaAccount', payload.chapaAccount || '')
       formData.append('chapaDemoPassword', payload.chapaDemoPassword || '')
-      formData.append('receiptImage', payload.receiptFile)
+      if (payload.receiptFile) formData.append('receiptImage', payload.receiptFile)
+      if (payload.prescriptionFile) formData.append('prescriptionImage', payload.prescriptionFile)
       return apiFetchMultipart('/orders', { method: 'POST', formData, token })
     }
     return apiFetch('/orders', { method: 'POST', body: payload, token })
@@ -78,11 +79,11 @@ export const orderApi = {
   listPharmacy: (token) => apiFetch('/orders/pharmacy', { token }),
   cancelMine: (id, token) => apiFetch(`/orders/${id}`, { method: 'DELETE', token }),
   approveForPharmacy: (id, token) => apiFetch(`/orders/${id}/approve`, { method: 'PUT', token }),
-  rejectForPharmacy: async (id, token) => {
+  rejectForPharmacy: async (id, token, payload = {}) => {
     try {
-      return await apiFetch(`/orders/${id}/reject`, { method: 'PUT', token })
+      return await apiFetch(`/orders/${id}/reject`, { method: 'PUT', token, body: payload })
     } catch (e) {
-      return apiFetch(`/orders/${id}/decline`, { method: 'PUT', token })
+      return apiFetch(`/orders/${id}/decline`, { method: 'PUT', token, body: payload })
     }
   },
   listTransactions: (token, period = '') => apiFetch(`/orders/transactions${period ? `?period=${period}` : ''}`, { token }),

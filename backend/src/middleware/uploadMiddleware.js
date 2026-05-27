@@ -1,7 +1,8 @@
 ﻿const fs = require('fs')
 const path = require('path')
 const multer = require('multer')
-const dir = process.env.VERCEL ? path.join('/tmp', 'uploads') : path.join(process.cwd(), 'uploads')
+const { getUploadRoot } = require('../utils/uploadPaths')
+const dir = getUploadRoot()
 if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
 
 const MIME_EXT = {
@@ -20,7 +21,13 @@ function extFromMime(mimetype) {
 }
 
 function safeImageFilename(fieldname, mimetype) {
-  const prefix = fieldname === 'licenseImage' ? 'license' : fieldname === 'receiptImage' ? 'receipt' : 'profile'
+  const prefix = fieldname === 'licenseImage'
+    ? 'license'
+    : fieldname === 'receiptImage'
+      ? 'receipt'
+      : fieldname === 'prescriptionImage'
+        ? 'prescription'
+        : 'profile'
   const ext = extFromMime(mimetype)
   return `${prefix}-${Date.now()}${ext}`
 }
@@ -38,6 +45,10 @@ const imageMulter = multer({
 exports.uploadProfileImage = imageMulter
 exports.uploadLicenseImage = imageMulter.single('licenseImage')
 exports.uploadReceiptImage = imageMulter.single('receiptImage')
+exports.uploadOrderImages = imageMulter.fields([
+  { name: 'receiptImage', maxCount: 1 },
+  { name: 'prescriptionImage', maxCount: 1 },
+])
 exports.uploadRegisterFiles = imageMulter.fields([
   { name: 'profileImage', maxCount: 1 },
   { name: 'licenseImage', maxCount: 1 },

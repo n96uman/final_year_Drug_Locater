@@ -179,6 +179,7 @@ function CartPage() {
   const { cartItems, cartStatus, orderHistory, removeFromCart, updateQuantity, checkout, checkoutLoading, cancelPendingOrder, cancelLoading, checkPendingOrderStatus, subtotal, delivery, total } = useCart()
   const [useChapa, setUseChapa] = useState(false)
   const [receiptFile, setReceiptFile] = useState(null)
+  const [prescriptionFile, setPrescriptionFile] = useState(null)
   const [chapaAccount, setChapaAccount] = useState('')
   const [chapaDemoPassword, setChapaDemoPassword] = useState('')
   const [transactions, setTransactions] = useState([])
@@ -202,9 +203,15 @@ function CartPage() {
 
   const handleCheckout = async () => {
     if (!useChapa && !receiptFile) return
-    const result = await checkout(useChapa ? 'chapa' : 'none', receiptFile, { chapaAccount, chapaDemoPassword })
+    const result = await checkout(
+      useChapa ? 'chapa' : 'none',
+      receiptFile,
+      prescriptionFile,
+      { chapaAccount, chapaDemoPassword },
+    )
     if (result.ok) {
       setReceiptFile(null)
+      setPrescriptionFile(null)
       setChapaAccount('')
       setChapaDemoPassword('')
     }
@@ -276,6 +283,13 @@ function CartPage() {
           ) : (
             <FileInput id="receipt-photo" label="Receipt photo" required fileName={receiptFile?.name} onChange={setReceiptFile} hint="Upload a clear photo of your payment receipt." />
           )}
+          <FileInput
+            id="prescription-photo"
+            label="Prescription image (optional)"
+            fileName={prescriptionFile?.name}
+            onChange={setPrescriptionFile}
+            hint="Optional: upload a doctor prescription image for pharmacy review."
+          />
           <div className="cart-summary__row"><span>Subtotal</span><span>{subtotal} ETB</span></div>
           <div className="cart-summary__row"><span>Delivery</span><span>{delivery} ETB</span></div>
           <div className="cart-summary__row cart-summary__row--total"><span>Total price</span><span>{total} ETB</span></div>
@@ -289,6 +303,14 @@ function CartPage() {
           <div className="cart-summary__row"><span>Approved items</span><span>{orderHistory.approved}</span></div>
           <div className="cart-summary__row cart-summary__row--declined"><span>Declined items</span><span>{orderHistory.rejected}</span></div>
           <div className="cart-summary__row"><span>Pending items</span><span>{orderHistory.pending}</span></div>
+          {Array.isArray(orderHistory.rejectedReasons) && orderHistory.rejectedReasons.length ? (
+            <div className="form-group" style={{ marginTop: '0.75rem' }}>
+              <p className="form-hint" style={{ marginBottom: '0.35rem' }}><strong>Rejection reason(s):</strong></p>
+              {orderHistory.rejectedReasons.map((reason) => (
+                <p key={reason} className="form-hint">- {reason}</p>
+              ))}
+            </div>
+          ) : null}
           {cartStatus === 'waiting' && orderHistory.pending > 0 && orderHistory.approved === 0 ? <button type="button" className="btn btn--danger btn--block" disabled={cancelLoading} onClick={handleCancelWaitingOrder}>{cancelLoading ? 'Cancelling...' : 'Cancel waiting order'}</button> : null}
           {cartStatus === 'waiting' && orderHistory.approved > 0 ? <p className="form-hint">This order has pharmacy approval and can no longer be cancelled.</p> : null}
         </section>
@@ -491,19 +513,52 @@ function TermsPage() {
 }
 
 const fallbackProfileImage = 'https://cdn-icons-png.flaticon.com/512/149/149071.png'
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').trim()
+
+const apiOrigin = (() => {
+  try {
+    if (!/^https?:\/\//i.test(apiBaseUrl)) return null
+    return new URL(apiBaseUrl).origin
+  } catch {
+    return null
+  }
+})()
 
 /**
- * Resolves an image src returned by the backend.
- * - Absolute URLs (http/https) are kept as-is so the browser fetches them directly.
- *   In local dev the Vite proxy forwards /uploads/* to the backend; in production
- *   the backend returns its own full origin so the URL is already correct.
- * - Relative paths are returned unchanged.
+ * Resolves an image src returned by the backend into something the browser can fetch.
+ *
+ * The backend returns absolute URLs like http://localhost:5000/uploads/profile-xxx.jpg
+ * (controlled by PUBLIC_ORIGIN in backend/.env).
+ *
+ * In local dev we strip the origin so the path becomes /uploads/xxx which the
+ * Vite proxy forwards to localhost:5000 — this avoids direct cross-origin requests
+ * and works even if PUBLIC_ORIGIN is wrong.
+ *
+ * In production (Vercel) the backend returns its own origin, which is the same
+ * domain as the frontend, so /uploads/xxx resolves correctly there too.
+ *
+ * CDN URLs (flaticon etc.) are kept as-is.
  */
 const uploadImageSrc = (src) => {
   if (!src) return ''
-  if (/^https?:\/\//i.test(src)) return src   // keep full URL — works in dev (proxy) and prod
-  if (src.startsWith('/')) return src
-  return `/${src}`
+  const s = String(src)
+  // CDN / external image — keep as-is
+  if (/^https?:\/\//i.test(s)) {
+    try {
+      const url = new URL(s)
+      if (url.pathname.startsWith('/uploads/')) {
+        const sameOrigin = typeof window !== 'undefined' && url.origin === window.location.origin
+        const sameApiOrigin = apiOrigin && url.origin === apiOrigin
+        // For local dev proxy or same-origin deploys, use relative path.
+        if (sameOrigin || sameApiOrigin || /localhost|127\.0\.0\.1/i.test(url.hostname)) return url.pathname
+      }
+    } catch {
+      // malformed URL — return as-is
+    }
+    return s
+  }
+  if (s.startsWith('/')) return s
+  return `/${s}`
 }
 const profileImageSrc = (src) => uploadImageSrc(src) || fallbackProfileImage
 
@@ -600,9 +655,10 @@ function Profile() {
     setFile(null)
     setLicenseFile(null)
     setSaving(false)
-    setEdit(false)
-    // refreshProfile is called to get the latest data including new image URL
+    // Fetch fresh data from server FIRST so the view shows updated values immediately
     await refreshProfile()
+    // Only close edit mode after fresh data is in state
+    setEdit(false)
   }
 
   const fillCurrentLocation = () => {
@@ -758,14 +814,15 @@ function Profile() {
 
       {msg ? <p className="form-hint profile-save-msg" role="status">{msg}</p> : null}
 
-      <button
-        type="button"
-        className="btn btn--danger"
-        style={{ marginTop: '1.5rem' }}
-        onClick={async () => { await logout(); nav('/login') }}
-      >
-        Sign out
-      </button>
+      <div className="profile-signout-wrap">
+        <button
+          type="button"
+          className="btn btn--ghost btn--sm profile-signout-btn"
+          onClick={async () => { await logout(); nav('/login') }}
+        >
+          Sign out
+        </button>
+      </div>
     </section>
   )
 }
@@ -835,7 +892,7 @@ function PharmacyLayout({ activeOrdersCount }) {
   )
 }
 
-function DashboardHome({ inventory, orders, weeklyTransactions }) {
+function DashboardHome({ inventory, orders, weeklyTransactions, onDelete }) {
   const { currentUser } = useAuth()
   const nav = useNavigate()
   const pendingOrders = orders.filter((o) => o.status === 'pending').length
@@ -843,6 +900,7 @@ function DashboardHome({ inventory, orders, weeklyTransactions }) {
   const declinedOrders = orders.filter((o) => o.status === 'rejected').length
   const weeklyTransactionTotal = weeklyTransactions.reduce((sum, tx) => sum + Number(tx.amount || 0), 0)
   const now = new Date()
+  const today = now.toISOString().slice(0, 10)
   const soon = new Date()
   soon.setDate(soon.getDate() + 30)
   const expiringMedicines = inventory
@@ -853,6 +911,7 @@ function DashboardHome({ inventory, orders, weeklyTransactions }) {
     })
     .sort((a, b) => new Date(a.expiry) - new Date(b.expiry))
 
+  const expiredCount = expiringMedicines.filter((m) => m.expiry < today).length
   const profileIncomplete = !currentUser?.name?.trim() || !currentUser?.location?.trim()
 
   return (
@@ -866,15 +925,77 @@ function DashboardHome({ inventory, orders, weeklyTransactions }) {
         </div>
       ) : null}
 
-      <div className="stat-grid"><article className="stat-card"><p className="stat-card__label">Total medicines</p><p className="stat-card__value">{inventory.length}</p></article><article className="stat-card"><p className="stat-card__label">Pending orders</p><p className="stat-card__value">{pendingOrders}</p></article><article className="stat-card"><p className="stat-card__label">Approved orders</p><p className="stat-card__value">{approvedOrders}</p></article><article className="stat-card"><p className="stat-card__label">Declined orders</p><p className="stat-card__value">{declinedOrders}</p></article><article className="stat-card"><p className="stat-card__label">Low stock (&lt; 10)</p><p className="stat-card__value">{inventory.filter((m) => Number(m.quantity) < 10).length}</p></article><article className="stat-card"><p className="stat-card__label">This week transactions</p><p className="stat-card__value">{weeklyTransactions.length}</p><p className="form-hint">{weeklyTransactionTotal} ETB</p></article></div>
+      {expiredCount > 0 ? (
+        <div className="profile-incomplete-banner" role="alert" style={{ borderColor: '#b91c1c' }}>
+          <span>🚫 You have <strong>{expiredCount}</strong> expired medicine{expiredCount > 1 ? 's' : ''} in your inventory. Expired medicines are hidden from customers. Please remove them below.</span>
+          <button type="button" className="btn btn--danger btn--sm" onClick={() => document.getElementById('expiry-alerts-section')?.scrollIntoView({ behavior: 'smooth' })}>View expired ↓</button>
+        </div>
+      ) : null}
+
+      <div className="stat-grid">
+        <article className="stat-card"><p className="stat-card__label">Total medicines</p><p className="stat-card__value">{inventory.length}</p></article>
+        <article className="stat-card"><p className="stat-card__label">Pending orders</p><p className="stat-card__value">{pendingOrders}</p></article>
+        <article className="stat-card"><p className="stat-card__label">Approved orders</p><p className="stat-card__value">{approvedOrders}</p></article>
+        <article className="stat-card"><p className="stat-card__label">Declined orders</p><p className="stat-card__value">{declinedOrders}</p></article>
+        <article className="stat-card"><p className="stat-card__label">Low stock (&lt; 10)</p><p className="stat-card__value">{inventory.filter((m) => Number(m.quantity) < 10).length}</p></article>
+        <article className="stat-card"><p className="stat-card__label">This week transactions</p><p className="stat-card__value">{weeklyTransactions.length}</p><p className="form-hint">{weeklyTransactionTotal} ETB</p></article>
+        {expiredCount > 0 ? <article className="stat-card stat-card--danger"><p className="stat-card__label">🚫 Expired</p><p className="stat-card__value">{expiredCount}</p></article> : null}
+      </div>
+
       <section className="form-panel form-panel--full cart-history">
         <h2>This week transaction history</h2>
         <TransactionList transactions={weeklyTransactions} />
       </section>
-      <section className="form-panel form-panel--full cart-history">
+
+      <section className="form-panel form-panel--full cart-history" id="expiry-alerts-section">
         <h2>Expiry alerts</h2>
-        {!expiringMedicines.length ? <p className="form-hint">No medicines expiring in the next 30 days.</p> : (
-          <div className="table-scroll"><table className="data-table"><thead><tr><th>Medicine</th><th>Quantity</th><th>Expiry date</th><th>Status</th></tr></thead><tbody>{expiringMedicines.map((m) => { const expiry = new Date(m.expiry); const expired = expiry < now; return <tr key={m._id || m.id}><th scope="row">{m.name}</th><td>{m.quantity}</td><td>{m.expiry}</td><td>{expired ? 'Expired' : 'Close to expiry'}</td></tr> })}</tbody></table></div>
+        <p className="form-hint">Expired medicines are automatically hidden from customers. Remove them to keep your inventory clean.</p>
+        {!expiringMedicines.length ? <p className="form-hint">No medicines expiring in the next 30 days. ✓</p> : (
+          <div className="table-scroll">
+            <table className="data-table">
+              <thead>
+                <tr><th>Medicine</th><th>Quantity</th><th>Expiry date</th><th>Status</th><th>Action</th></tr>
+              </thead>
+              <tbody>
+                {expiringMedicines.map((m) => {
+                  const expired = m.expiry < today
+                  return (
+                    <tr key={m._id || m.id} className={expired ? 'admin-expired-row' : ''}>
+                      <th scope="row">{m.name}</th>
+                      <td>{m.quantity}</td>
+                      <td style={expired ? { color: '#b91c1c', fontWeight: 700 } : {}}>{m.expiry}</td>
+                      <td>
+                        <span className={`order-item-status order-item-status--${expired ? 'rejected' : 'pending'}`}>
+                          {expired ? 'Expired' : 'Expiring soon'}
+                        </span>
+                      </td>
+                      <td>
+                        {expired ? (
+                          <button
+                            type="button"
+                            className="btn btn--danger btn--sm"
+                            onClick={() => {
+                              if (window.confirm(`Remove "${m.name}" from your inventory?`)) onDelete(m._id || m.id)
+                            }}
+                          >
+                            Remove
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn btn--outline btn--sm"
+                            onClick={() => nav('/inventory')}
+                          >
+                            Update
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
     </>
@@ -897,21 +1018,93 @@ function AddMedicine({ onAdd }) {
 }
 
 function Inventory({ inventory, onUpdate, onDelete }) {
-  return <><h1 className="dash-title">Inventory management</h1><div className="table-scroll"><table className="data-table"><thead><tr><th>Medicine name</th><th>Price (ETB)</th><th>Quantity</th><th>Actions</th></tr></thead><tbody>{inventory.map((m) => <tr key={m._id}><th scope="row">{m.name}</th><td><input type="number" value={m.price} onChange={(e) => onUpdate(m._id, 'price', Number(e.target.value))} /></td><td><input type="number" value={m.quantity} onChange={(e) => onUpdate(m._id, 'quantity', Number(e.target.value))} /></td><td><div className="table-actions"><button type="button" className="btn btn--danger btn--sm" onClick={() => onDelete(m._id)}>Delete</button></div></td></tr>)}</tbody></table></div></>
+  const today = new Date().toISOString().slice(0, 10)
+  return (
+    <>
+      <h1 className="dash-title">Inventory management</h1>
+      {inventory.some((m) => m.expiry && m.expiry < today) ? (
+        <div className="profile-incomplete-banner" role="alert" style={{ borderColor: '#b91c1c', marginBottom: '1rem' }}>
+          <span>🚫 Some medicines below have <strong>expired</strong> and are hidden from customers. Remove them to keep your inventory accurate.</span>
+        </div>
+      ) : null}
+      <div className="table-scroll">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Medicine name</th>
+              <th>Price (ETB)</th>
+              <th>Quantity</th>
+              <th>Expiry date</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {inventory.map((m) => {
+              const expired = m.expiry && m.expiry < today
+              const expiringSoon = m.expiry && !expired && m.expiry <= new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10)
+              return (
+                <tr key={m._id} className={expired ? 'admin-expired-row' : ''}>
+                  <th scope="row">{m.name}</th>
+                  <td>
+                    <input
+                      type="number"
+                      value={m.price}
+                      onChange={(e) => onUpdate(m._id, 'price', Number(e.target.value))}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      value={m.quantity}
+                      onChange={(e) => onUpdate(m._id, 'quantity', Number(e.target.value))}
+                    />
+                  </td>
+                  <td style={expired ? { color: '#b91c1c', fontWeight: 700 } : expiringSoon ? { color: '#b45309', fontWeight: 600 } : {}}>
+                    {m.expiry || '—'}
+                  </td>
+                  <td>
+                    {expired
+                      ? <span className="order-item-status order-item-status--rejected">Expired</span>
+                      : expiringSoon
+                        ? <span className="order-item-status order-item-status--pending">Expiring soon</span>
+                        : <span className="order-item-status order-item-status--approved">OK</span>}
+                  </td>
+                  <td>
+                    <div className="table-actions">
+                      <button
+                        type="button"
+                        className="btn btn--danger btn--sm"
+                        onClick={() => {
+                          if (window.confirm(`Remove "${m.name}" from inventory?`)) onDelete(m._id)
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </>
+  )
 }
 
-function OrderReceipt({ src, orderId }) {
+function OrderImage({ src, orderId, label = '📄 Payment receipt', emptyText = 'No image uploaded for this order.' }) {
   const imageSrc = uploadImageSrc(src)
   const [imgError, setImgError] = useState(false)
-  if (!imageSrc) return <p className="form-hint order-receipt__missing">No receipt uploaded for this order.</p>
+  if (!imageSrc) return <p className="form-hint order-receipt__missing">{emptyText}</p>
   return (
     <div className="order-receipt">
-      <p className="order-receipt__label">📄 Payment receipt</p>
+      <p className="order-receipt__label">{label}</p>
       {!imgError ? (
         <a href={imageSrc} target="_blank" rel="noreferrer" className="order-receipt__link">
           <img
             src={imageSrc}
-            alt={`Receipt for order ${String(orderId).slice(-6)}`}
+            alt={`Order image for ${String(orderId).slice(-6)}`}
             className="order-receipt__img"
             loading="lazy"
             onError={() => setImgError(true)}
@@ -920,7 +1113,7 @@ function OrderReceipt({ src, orderId }) {
         </a>
       ) : (
         <a href={imageSrc} target="_blank" rel="noreferrer" className="btn btn--outline btn--sm">
-          Open receipt ↗
+          Open image ↗
         </a>
       )}
     </div>
@@ -933,7 +1126,13 @@ function PharmacyOrders({ orders, onApprove, onReject }) {
   const visibleOrders = orders.filter((o) => !dismissedOrderIds.includes(o.id))
   const pendingOrdersCount = visibleOrders.filter((o) => o.items.some((item) => item.status === 'pending')).length
   const dismissOrder = (id) => setDismissedOrderIds((prev) => [...prev, id])
-  const run = async (fn, id) => { setBusy(id); await fn(id); setBusy('') }
+  const run = async (fn, id, ...args) => { setBusy(id); await fn(id, ...args); setBusy('') }
+  const handleReject = async (orderId) => {
+    const reason = window.prompt('Enter rejection reason for the customer:')
+    if (reason == null) return
+    if (!String(reason).trim()) return window.alert('Rejection reason is required.')
+    await run(onReject, orderId, String(reason).trim())
+  }
   return (
     <>
       <h1 className="dash-title">Orders</h1>
@@ -959,8 +1158,8 @@ function PharmacyOrders({ orders, onApprove, onReject }) {
                 {o.customer?.email ? <p><span className="order-meta-label">Email:</span> {o.customer.email}</p> : null}
               </div>
 
-              {/* Receipt — shown prominently so pharmacy can verify payment */}
-              <OrderReceipt src={o.receiptImage} orderId={o.id} />
+              <OrderImage src={o.receiptImage} orderId={o.id} label="📄 Payment receipt" emptyText="No receipt uploaded for this order." />
+              <OrderImage src={o.prescriptionImage} orderId={o.id} label="🩺 Prescription image" emptyText="No prescription image uploaded." />
 
               <div className="pharmacy-order-card__items">
                 {o.items.map((i) => (
@@ -975,7 +1174,7 @@ function PharmacyOrders({ orders, onApprove, onReject }) {
               {hasPendingItems ? (
                 <div className="table-actions">
                   <button className="btn btn--primary btn--sm" disabled={busy === o.id} onClick={() => run(onApprove, o.id)}>Approve</button>
-                  <button className="btn btn--danger btn--sm btn--danger-solid" disabled={busy === o.id} onClick={() => run(onReject, o.id)}>Decline</button>
+                  <button className="btn btn--danger btn--sm btn--danger-solid" disabled={busy === o.id} onClick={() => handleReject(o.id)}>Decline</button>
                 </div>
               ) : null}
             </article>
@@ -1017,7 +1216,7 @@ function PharmacyPendingPage() {
         ) : (
           <p>Registration was not approved.</p>
         )}
-        <button type="button" className="btn btn--outline" style={{ marginTop: '1rem' }} onClick={async () => { await logout(); nav('/login') }}>Sign out</button>
+        <button type="button" className="btn btn--ghost btn--sm" style={{ marginTop: '1.5rem' }} onClick={async () => { await logout(); nav('/login') }}>Sign out</button>
       </section>
     </div>
   )
@@ -1226,7 +1425,6 @@ function AdminPage() {
             onClick={() => setSection(key)}
           >{label}</button>
         ))}
-        <button type="button" className="btn btn--danger btn--sm" style={{ marginLeft: 'auto' }} onClick={async () => { await logout(); nav('/login') }}>Sign out</button>
       </div>
 
       {/* ── PHARMACIES TAB ── */}
@@ -1440,6 +1638,17 @@ function AdminPage() {
           ) : null}
         </section>
       ) : null}
+
+      {/* Sign out — small, at the very bottom */}
+      <div className="profile-signout-wrap">
+        <button
+          type="button"
+          className="btn btn--ghost btn--sm profile-signout-btn"
+          onClick={async () => { await logout(); nav('/login') }}
+        >
+          Sign out
+        </button>
+      </div>
     </div>
   )
 }
@@ -1545,9 +1754,9 @@ export default function App() {
       notify(e.message || 'Failed to approve order.')
     }
   }
-  const reject = async (id) => {
+  const reject = async (id, rejectionReason) => {
     try {
-      await orderApi.rejectForPharmacy(id, token)
+      await orderApi.rejectForPharmacy(id, token, { rejectionReason })
       notify('Order declined successfully.')
       await Promise.all([loadOrders(), loadPublic(), loadInventory(), loadWeeklyTransactions()])
     } catch (e) {
@@ -1570,7 +1779,7 @@ export default function App() {
       <Route path="/pharmacy-location" element={<PharmacyLocationRoute><PublicLayout><PharmacyLocationPage /></PublicLayout></PharmacyLocationRoute>} />
       <Route path="/admin" element={<AdminRoute><PublicLayout><AdminPage /></PublicLayout></AdminRoute>} />
 
-      <Route path="/pharmacy-dashboard" element={<PharmacyRoute><PharmacyLayout activeOrdersCount={activeOrdersCount} /></PharmacyRoute>}><Route index element={<DashboardHome inventory={inventory} orders={orders} weeklyTransactions={weeklyTransactions} />} /></Route>
+      <Route path="/pharmacy-dashboard" element={<PharmacyRoute><PharmacyLayout activeOrdersCount={activeOrdersCount} /></PharmacyRoute>}><Route index element={<DashboardHome inventory={inventory} orders={orders} weeklyTransactions={weeklyTransactions} onDelete={delMed} />} /></Route>
       <Route path="/pharmacy-orders" element={<PharmacyRoute><PharmacyLayout activeOrdersCount={activeOrdersCount} /></PharmacyRoute>}><Route index element={<PharmacyOrders orders={orders} onApprove={approve} onReject={reject} />} /></Route>
       <Route path="/inventory" element={<PharmacyRoute><PharmacyLayout activeOrdersCount={activeOrdersCount} /></PharmacyRoute>}><Route index element={<Inventory inventory={inventory} onUpdate={updMed} onDelete={delMed} />} /></Route>
       <Route path="/add-medicine" element={<PharmacyRoute><PharmacyLayout activeOrdersCount={activeOrdersCount} /></PharmacyRoute>}><Route index element={<AddMedicine onAdd={addMed} />} /></Route>

@@ -6,12 +6,13 @@ const multer = require('multer')
 const bcrypt = require('bcryptjs')
 const connectDB = require('./config/db')
 const User = require('./models/User')
+const { getUploadRoot } = require('./utils/uploadPaths')
 
 const app = express()
 
 app.use(cors())
 app.use(express.json())
-app.use('/uploads', express.static(path.join(process.cwd(),'uploads')))
+app.use('/uploads', express.static(getUploadRoot()))
 
 let dbPromise = null
 const ensureDb = () => {

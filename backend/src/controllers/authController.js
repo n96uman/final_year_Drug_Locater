@@ -7,10 +7,11 @@ const { jwtSecret } = require('../config/auth')
 const { isStrongPassword, strongPasswordMessage } = require('../utils/passwordPolicy')
 const { filePublicUrl } = require('../utils/publicFileUrl')
 const { sanitizeUploadPath } = require('../utils/sanitizeUploadPath')
+const { getUploadRoot } = require('../utils/uploadPaths')
 
 const img = (req, p) => filePublicUrl(req, sanitizeUploadPath(p))
 
-const UPLOAD_ROOT = process.env.VERCEL ? path.join('/tmp', 'uploads') : path.join(process.cwd(), 'uploads')
+const UPLOAD_ROOT = getUploadRoot()
 
 function tryUnlinkUpload(rel) {
   if (!rel || typeof rel !== 'string' || !rel.startsWith('/uploads/')) return

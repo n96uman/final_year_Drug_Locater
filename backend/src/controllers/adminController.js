@@ -7,10 +7,11 @@ const Transaction = require('../models/Transaction')
 const ExpiredAlert = require('../models/ExpiredAlert')
 const { filePublicUrl } = require('../utils/publicFileUrl')
 const { sanitizeUploadPath } = require('../utils/sanitizeUploadPath')
+const { getUploadRoot } = require('../utils/uploadPaths')
 
 const img = (req, p) => filePublicUrl(req, sanitizeUploadPath(p))
 
-const UPLOAD_ROOT = process.env.VERCEL ? path.join('/tmp', 'uploads') : path.join(process.cwd(), 'uploads')
+const UPLOAD_ROOT = getUploadRoot()
 
 function mapPharmacy(req, u) {
   return {

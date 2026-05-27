@@ -58,9 +58,13 @@ const updateOrderTransactions = async (order) => {
 }
 
 exports.createOrder = async (req, res) => {
+  const files = req.files || {}
+  const receiptFile = files.receiptImage?.[0]
+  const prescriptionFile = files.prescriptionImage?.[0]
   const paymentMethod = req.body.paymentMethod === 'chapa' ? 'chapa' : 'none'
   const requestedItems = bodyJson(req.body.items, [])
-  const receiptPath = req.file ? sanitizeUploadPath(`/uploads/${req.file.filename}`) : ''
+  const receiptPath = receiptFile ? sanitizeUploadPath(`/uploads/${receiptFile.filename}`) : ''
+  const prescriptionPath = prescriptionFile ? sanitizeUploadPath(`/uploads/${prescriptionFile.filename}`) : ''
   const chapaAccount = String(req.body.chapaAccount || '').trim()
   const chapaDemoPassword = String(req.body.chapaDemoPassword || '').trim()
 
@@ -90,6 +94,7 @@ exports.createOrder = async (req, res) => {
     paymentStatus: paymentMethod === 'chapa' ? 'paid' : 'pending',
     paymentReference: paymentMethod === 'chapa' ? `demo_chapa_${Date.now()}` : undefined,
     receiptImage: receiptPath,
+    prescriptionImage: prescriptionPath,
     chapaAccount: paymentMethod === 'chapa' ? chapaAccount : undefined,
   })
   if (paymentMethod === 'chapa') {
@@ -108,13 +113,32 @@ exports.verifyChapaPayment = async (req, res) => {
 
 exports.getMyOrders = async (req, res) => {
   const orders = await Order.find({ customer: req.user._id }).sort({ createdAt: -1 })
-  res.json({ orders: orders.map((order) => ({ ...order.toObject(), receiptImage: img(req, order.receiptImage) })) })
+  res.json({
+    orders: orders.map((order) => ({
+      ...order.toObject(),
+      receiptImage: img(req, order.receiptImage),
+      prescriptionImage: img(req, order.prescriptionImage),
+    })),
+  })
 }
 
 exports.getPharmacyOrders = async (req, res) => {
   const id = req.user._id
   const orders = await Order.find({ status: { $ne: 'cancelled' }, $or: [{ 'items.pharmacyId': id }, { 'items.pharmacyName': req.user.name }] }).populate('customer', 'name email').sort({ createdAt: -1 })
-  res.json({ orders: orders.map((order) => ({ id: order._id, customer: order.customer, createdAt: order.createdAt, status: order.status, paymentMethod: order.paymentMethod, paymentStatus: order.paymentStatus, chapaAccount: order.chapaAccount, receiptImage: img(req, order.receiptImage), items: order.items.filter((item) => belongs(item, id, req.user.name)) })) })
+  res.json({
+    orders: orders.map((order) => ({
+      id: order._id,
+      customer: order.customer,
+      createdAt: order.createdAt,
+      status: order.status,
+      paymentMethod: order.paymentMethod,
+      paymentStatus: order.paymentStatus,
+      chapaAccount: order.chapaAccount,
+      receiptImage: img(req, order.receiptImage),
+      prescriptionImage: img(req, order.prescriptionImage),
+      items: order.items.filter((item) => belongs(item, id, req.user.name)),
+    })),
+  })
 }
 
 exports.cancelCustomerOrder = async (req, res) => {
@@ -156,11 +180,15 @@ exports.approvePharmacyOrder = async (req, res) => {
 
 exports.rejectPharmacyOrder = async (req, res) => {
   const id = req.user._id
+  const rejectionReason = String(req.body.rejectionReason || '').trim().slice(0, 500)
+  if (!rejectionReason) return res.status(400).json({ message: 'Please provide a reason for rejecting this order.' })
   const order = await Order.findById(req.params.orderId)
   if (!order) return res.status(404).json({ message: 'Order not found' })
   const has = order.items.some((item) => belongs(item, id, req.user.name) && item.status === 'pending')
   if (!has) return res.status(400).json({ message: 'No pending items for this pharmacy in the selected order' })
-  order.items = order.items.map((item) => belongs(item, id, req.user.name) && item.status === 'pending' ? { ...item.toObject(), status: 'rejected' } : item)
+  order.items = order.items.map((item) => belongs(item, id, req.user.name) && item.status === 'pending'
+    ? { ...item.toObject(), status: 'rejected', rejectionReason }
+    : item)
   order.status = recalc(order.items)
   await order.save()
   if (order.paymentMethod === 'chapa') {
