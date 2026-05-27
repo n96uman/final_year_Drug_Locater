@@ -38,7 +38,8 @@ const storage = multer.diskStorage({
 })
 const imageMulter = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 },
+  // Keep uploads below common serverless request-size ceilings.
+  limits: { fileSize: 2 * 1024 * 1024 },
   fileFilter: (_r, f, cb) => cb(null, (f.mimetype || '').startsWith('image/')),
 })
 

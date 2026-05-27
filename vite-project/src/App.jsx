@@ -426,9 +426,9 @@ function Register() {
             </select>
           </div>
           {form.role === 'pharmacy' ? (
-            <FileInput id="reg-licence" label="Pharmacy licence (photo)" required fileName={licenseFile?.name} onChange={setLicenseFile} hint="Only administrators can view your licence photo." />
+            <FileInput id="reg-licence" label="Pharmacy licence (photo)" required fileName={licenseFile?.name} onChange={setLicenseFile} hint="Only administrators can view your licence photo. Max size: 2MB." />
           ) : null}
-          <FileInput id="reg-photo" label="Profile picture (optional)" fileName={file?.name} onChange={setFile} />
+          <FileInput id="reg-photo" label="Profile picture (optional)" fileName={file?.name} onChange={setFile} hint="Max size: 2MB." />
           <TermsAgreement checked={acceptTerms} onChange={setAcceptTerms} id="register-terms" />
           <button className="btn btn--primary btn--block" type="submit" disabled={!acceptTerms}>Create account</button>
           {err ? <p className="form-hint" role="alert">{err}</p> : null}
