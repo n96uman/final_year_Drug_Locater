@@ -202,7 +202,10 @@ function CartPage() {
   }, [token, cartStatus, orderHistory?.updatedAt])
 
   const handleCheckout = async () => {
-    if (!useChapa && !receiptFile) return
+    if (!useChapa && !receiptFile) {
+      window.alert('You cannot continue. Please upload a receipt image first.')
+      return
+    }
     const result = await checkout(
       useChapa ? 'chapa' : 'none',
       receiptFile,
@@ -385,7 +388,10 @@ function Register() {
     if (!acceptTerms) return setErr('Please accept the terms and conditions.')
     if (!isStrongPassword(form.password)) return setErr(strongPasswordHint)
     if (form.password !== confirmPassword) return setErr('Passwords do not match.')
-    if (form.role === 'pharmacy' && !licenseFile) return setErr('Please upload a clear photo of your pharmacy licence.')
+    if (form.role === 'pharmacy' && !licenseFile) {
+      window.alert('You cannot continue. Please upload a pharmacy licence image.')
+      return setErr('Please upload a clear photo of your pharmacy licence.')
+    }
     const r = await register({ ...form, profileFile: file, licenseFile: form.role === 'pharmacy' ? licenseFile : null, acceptTerms })
     if (!r.ok) return setErr(r.message)
     redirectAfterAuth(r.user, nav, '/')
