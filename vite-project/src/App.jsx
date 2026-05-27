@@ -289,6 +289,7 @@ function Login() {
   const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [acceptTerms, setAcceptTerms] = useState(false)
   const [err, setErr] = useState('')
   const nav = useNavigate()
@@ -306,7 +307,15 @@ function Login() {
       <section className="form-panel">
         <form onSubmit={submit}>
           <div className="form-group"><label htmlFor="login-email">Email</label><input id="login-email" type="text" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
-          <div className="form-group"><label htmlFor="login-password">Password</label><input id="login-password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></div>
+          <div className="form-group">
+            <label htmlFor="login-password">Password</label>
+            <div className="input-password-wrap">
+              <input id="login-password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <button type="button" className="input-password-toggle" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((v) => !v)}>
+                {showPassword ? '🙈' : '👁'}
+              </button>
+            </div>
+          </div>
           <TermsAgreement checked={acceptTerms} onChange={setAcceptTerms} id="login-terms" />
           <button className="btn btn--primary btn--block" type="submit" disabled={!acceptTerms}>Sign in</button>
           {err ? <p className="form-hint" role="alert">{err}</p> : null}
@@ -323,6 +332,9 @@ function Login() {
 function Register() {
   const { register } = useAuth()
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'customer' })
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
   const [file, setFile] = useState(null)
   const [licenseFile, setLicenseFile] = useState(null)
   const [acceptTerms, setAcceptTerms] = useState(false)
@@ -332,6 +344,7 @@ function Register() {
     e.preventDefault()
     if (!acceptTerms) return setErr('Please accept the terms and conditions.')
     if (!isStrongPassword(form.password)) return setErr(strongPasswordHint)
+    if (form.password !== confirmPassword) return setErr('Passwords do not match.')
     if (form.role === 'pharmacy' && !licenseFile) return setErr('Please upload a clear photo of your pharmacy licence.')
     const r = await register({ ...form, profileFile: file, licenseFile: form.role === 'pharmacy' ? licenseFile : null, acceptTerms })
     if (!r.ok) return setErr(r.message)
@@ -346,8 +359,24 @@ function Register() {
           <div className="form-group"><label htmlFor="reg-email">Email</label><input id="reg-email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required /></div>
           <div className="form-group">
             <label htmlFor="reg-password">Password</label>
-            <input id="reg-password" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
+            <div className="input-password-wrap">
+              <input id="reg-password" type={showPassword ? 'text' : 'password'} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required autoComplete="new-password" />
+              <button type="button" className="input-password-toggle" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((v) => !v)}>
+                {showPassword ? '🙈' : '👁'}
+              </button>
+            </div>
             <p className="form-hint form-hint--field">{strongPasswordHint}</p>
+          </div>
+          <div className="form-group">
+            <label htmlFor="reg-confirm-password">Confirm password</label>
+            <div className="input-password-wrap">
+              <input id="reg-confirm-password" type={showConfirm ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required autoComplete="new-password" />
+              <button type="button" className="input-password-toggle" aria-label={showConfirm ? 'Hide password' : 'Show password'} onClick={() => setShowConfirm((v) => !v)}>
+                {showConfirm ? '🙈' : '👁'}
+              </button>
+            </div>
+            {confirmPassword && form.password !== confirmPassword ? <p className="form-hint form-hint--error" role="alert">Passwords do not match.</p> : null}
+            {confirmPassword && form.password === confirmPassword ? <p className="form-hint form-hint--ok">Passwords match ✓</p> : null}
           </div>
           <div className="form-group">
             <label htmlFor="reg-role">Account type</label>
@@ -444,17 +473,17 @@ function TermsPage() {
 }
 
 const fallbackProfileImage = 'https://cdn-icons-png.flaticon.com/512/149/149071.png'
+
+/**
+ * Resolves an image src returned by the backend.
+ * - Absolute URLs (http/https) are kept as-is so the browser fetches them directly.
+ *   In local dev the Vite proxy forwards /uploads/* to the backend; in production
+ *   the backend returns its own full origin so the URL is already correct.
+ * - Relative paths are returned unchanged.
+ */
 const uploadImageSrc = (src) => {
   if (!src) return ''
-  if (/^https?:\/\//i.test(src)) {
-    try {
-      const url = new URL(src)
-      if (url.pathname.startsWith('/uploads/')) return url.pathname
-    } catch {
-      return src
-    }
-    return src
-  }
+  if (/^https?:\/\//i.test(src)) return src   // keep full URL — works in dev (proxy) and prod
   if (src.startsWith('/')) return src
   return `/${src}`
 }

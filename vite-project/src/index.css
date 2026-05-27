@@ -1120,6 +1120,47 @@ main {
   margin: 0.35rem 0 0;
 }
 
+.form-hint--error {
+  color: var(--color-danger, #dc2626);
+  margin: 0.35rem 0 0;
+}
+
+.form-hint--ok {
+  color: #16a34a;
+  margin: 0.35rem 0 0;
+}
+
+/* ----- Password input with show/hide toggle ----- */
+.input-password-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-password-wrap input {
+  flex: 1;
+  padding-right: 2.75rem !important;
+}
+
+.input-password-toggle {
+  position: absolute;
+  right: 0.625rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0.25rem;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.input-password-toggle:hover {
+  color: var(--color-text);
+}
+
 /* ----- Footer ----- */
 .site-footer {
   margin-top: auto;
