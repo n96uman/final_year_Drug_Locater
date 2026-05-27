@@ -48,7 +48,7 @@ export function AuthProvider({ children }) {
     }
   }
 
-  const updateProfile = async ({ name, profileFile, location, locationLat, locationLng }) => {
+  const updateProfile = async ({ name, profileFile, location, locationLat, locationLng, accountNumber }) => {
     try {
       if (!session?.token) return { ok: false, message: 'Please login again.' }
       const formData = new FormData()
@@ -56,10 +56,11 @@ export function AuthProvider({ children }) {
       if (location != null) formData.append('location', location)
       if (locationLat != null) formData.append('locationLat', String(locationLat))
       if (locationLng != null) formData.append('locationLng', String(locationLng))
+      if (accountNumber != null) formData.append('accountNumber', accountNumber)
       if (profileFile) formData.append('profileImage', profileFile)
       const data = await authApi.updateProfile(formData, session.token)
       persist({ ...session, user: data.user })
-      return { ok: true }
+      return { ok: true, user: data.user }
     } catch (e) {
       return { ok: false, message: e.message }
     }

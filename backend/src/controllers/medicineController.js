@@ -5,7 +5,7 @@ exports.getMedicines = async (_req, res) => {
     role: 'pharmacy',
     $or: [{ pharmacyApprovalStatus: 'approved' }, { pharmacyApprovalStatus: { $exists: false } }],
   }).distinct('_id')
-  const medicines = await Medicine.find({ createdBy: { $in: approvedOwners } }).populate('createdBy', 'location locationLat locationLng').sort({ createdAt: -1 })
+  const medicines = await Medicine.find({ createdBy: { $in: approvedOwners } }).populate('createdBy', 'location locationLat locationLng accountNumber').sort({ createdAt: -1 })
   res.json({
     medicines: medicines.map((m) => {
       const obj = m.toObject()
@@ -15,6 +15,7 @@ exports.getMedicines = async (_req, res) => {
         pharmacyLocation: obj.createdBy?.location || '',
         pharmacyLat: obj.createdBy?.locationLat ?? null,
         pharmacyLng: obj.createdBy?.locationLng ?? null,
+        pharmacyAccountNumber: obj.createdBy?.accountNumber || '',
       }
     }),
   })

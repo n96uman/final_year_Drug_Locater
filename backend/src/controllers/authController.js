@@ -36,6 +36,7 @@ const safe = (u, req) => ({
   location: u.location || '',
   locationLat: u.locationLat ?? null,
   locationLng: u.locationLng ?? null,
+  accountNumber: u.accountNumber || '',
   termsAccepted: Boolean(u.termsAcceptedAt),
   ...(u.role === 'pharmacy' ? { hasLicense: Boolean(u.licenseImage) } : {}),
 })
@@ -128,12 +129,17 @@ exports.me = async (req, res) => res.json({ user: safe(req.user, req) })
 exports.updateProfile = async (req, res) => {
   if (req.body.name != null) req.user.name = String(req.body.name).trim().slice(0, 120)
   if (req.file) req.user.profileImage = sanitizeUploadPath(`/uploads/${req.file.filename}`)
-  if (req.user.role === 'pharmacy' && req.body.location != null) {
-    req.user.location = String(req.body.location).trim().slice(0, 500)
-    const lat = Number(req.body.locationLat)
-    const lng = Number(req.body.locationLng)
-    req.user.locationLat = Number.isFinite(lat) ? lat : null
-    req.user.locationLng = Number.isFinite(lng) ? lng : null
+  if (req.user.role === 'pharmacy') {
+    if (req.body.location != null) {
+      req.user.location = String(req.body.location).trim().slice(0, 500)
+      const lat = Number(req.body.locationLat)
+      const lng = Number(req.body.locationLng)
+      req.user.locationLat = Number.isFinite(lat) ? lat : null
+      req.user.locationLng = Number.isFinite(lng) ? lng : null
+    }
+    if (req.body.accountNumber != null) {
+      req.user.accountNumber = String(req.body.accountNumber).trim().slice(0, 200)
+    }
   }
   await req.user.save()
   res.json({ user: safe(req.user, req) })

@@ -15,6 +15,7 @@ const schema = new mongoose.Schema(
     location: { type: String, default: '' },
     locationLat: { type: Number, default: null },
     locationLng: { type: Number, default: null },
+    accountNumber: { type: String, default: '' },
     termsAcceptedAt: { type: Date, default: null },
   },
   { timestamps: true }
