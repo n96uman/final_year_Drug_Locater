@@ -94,6 +94,11 @@ export const adminApi = {
   listPendingPharmacies: (token) => apiFetch('/admin/pharmacies/pending', { token }),
   approvePharmacy: (id, token) => apiFetch(`/admin/pharmacies/${id}/approve`, { method: 'PUT', token }),
   rejectPharmacy: (id, token) => apiFetch(`/admin/pharmacies/${id}/reject`, { method: 'PUT', token }),
+  listPharmaciesWithAccounts: (token) => apiFetch('/admin/pharmacies-with-accounts', { token }),
+  listAllTransactions: (token) => apiFetch('/admin/transactions', { token }),
+  listExpiredAlerts: (token) => apiFetch('/admin/expired-alerts', { token }),
+  dismissExpiredAlert: (id, token) => apiFetch(`/admin/expired-alerts/${id}/dismiss`, { method: 'PUT', token }),
+  listExpiredMedicines: (token) => apiFetch('/admin/expired-medicines', { token }),
 }
 
 /** Fetches licence bytes with admin JWT; caller must revoke the object URL when done. */

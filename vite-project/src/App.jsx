@@ -85,30 +85,19 @@ function AdminRoute({ children }) {
   return children
 }
 
-function Home({ medicines, loading, error }) {
-  const { addToCart } = useCart()
-  const featured = medicines.slice(0, 6)
+function Home() {
   return (
-    <>
-      <section className="hero" aria-labelledby="hero-heading">
-        <div className="hero__content">
-          <h2 id="hero-heading">Connect with pharmacies across Hawassa</h2>
-          <p className="lead">Find medicines quickly, compare prices, and send checkout requests for pharmacy approval.</p>
-          <Link className="btn btn--primary" to="/search">Search medicines</Link>
-        </div>
-        <aside className="hero__visual hero__visual--photo" aria-label="Healthcare illustration">
-          <img className="hero__visual-img" src={heroImage} alt="Pharmacy in Hawassa" width={640} height={480} decoding="async" />
-          <p className="hero__visual-caption">Smart search · Compare prices · Build your cart</p>
-        </aside>
-      </section>
-      <section aria-labelledby="featured-heading">
-        <h2 id="featured-heading" className="section-title">Featured medicines</h2>
-        {loading ? <p className="form-hint">Loading…</p> : null}
-        {!loading && error ? <p className="form-hint">{error}</p> : null}
-        {!loading && !error && featured.length === 0 ? <p className="form-hint">No medicines found yet.</p> : null}
-        {!loading && !error ? <div className="card-grid card-grid--medicines">{featured.map((m) => <MedicineCard key={m._id || m.id} medicine={m} onAddToCart={addToCart} />)}</div> : null}
-      </section>
-    </>
+    <section className="hero" aria-labelledby="hero-heading">
+      <div className="hero__content">
+        <h2 id="hero-heading">Connect with pharmacies across Hawassa</h2>
+        <p className="lead">Find medicines quickly, compare prices, and send checkout requests for pharmacy approval.</p>
+        <Link className="btn btn--primary" to="/search">Search medicines</Link>
+      </div>
+      <aside className="hero__visual hero__visual--photo" aria-label="Healthcare illustration">
+        <img className="hero__visual-img" src={heroImage} alt="Pharmacy in Hawassa" width={640} height={480} decoding="async" />
+        <p className="hero__visual-caption">Smart search · Compare prices · Build your cart</p>
+      </aside>
+    </section>
   )
 }
 
@@ -1072,83 +1061,385 @@ function AdminPharmacyLicenseImg({ userId, token }) {
 function AdminPage() {
   const { token, logout } = useAuth()
   const nav = useNavigate()
-  const [tab, setTab] = useState('pending')
+
+  // main section tabs
+  const [section, setSection] = useState('pharmacies')
+
+  // --- pharmacies tab ---
+  const [pharmTab, setPharmTab] = useState('pending')
   const [stats, setStats] = useState(null)
-  const [list, setList] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [pharmList, setPharmList] = useState([])
+  const [pharmLoading, setPharmLoading] = useState(true)
+  const [pharmError, setPharmError] = useState('')
   const [busyId, setBusyId] = useState('')
-  const load = async () => {
+
+  // --- accounts tab ---
+  const [accounts, setAccounts] = useState([])
+  const [accountsLoading, setAccountsLoading] = useState(false)
+  const [accountsError, setAccountsError] = useState('')
+
+  // --- transactions tab ---
+  const [txns, setTxns] = useState([])
+  const [txnsLoading, setTxnsLoading] = useState(false)
+  const [txnsError, setTxnsError] = useState('')
+
+  // --- expired alerts tab ---
+  const [expiredAlerts, setExpiredAlerts] = useState([])
+  const [reAddAlerts, setReAddAlerts] = useState([])
+  const [expiredMeds, setExpiredMeds] = useState([])
+  const [expiredLoading, setExpiredLoading] = useState(false)
+  const [expiredError, setExpiredError] = useState('')
+
+  const loadPharmacies = async () => {
     if (!token) return
-    setLoading(true)
-    setError('')
+    setPharmLoading(true)
+    setPharmError('')
     try {
       const [statsRes, listRes] = await Promise.all([
         adminApi.stats(token),
-        adminApi.listPharmacies(tab, token),
+        adminApi.listPharmacies(pharmTab, token),
       ])
       setStats(statsRes.stats || null)
-      setList(listRes.pharmacies || [])
+      setPharmList(listRes.pharmacies || [])
     } catch (e) {
-      setError(e.message || 'Could not load admin data.')
-      setList([])
+      setPharmError(e.message || 'Could not load data.')
+      setPharmList([])
     } finally {
-      setLoading(false)
+      setPharmLoading(false)
     }
   }
-  useEffect(() => { load() }, [token, tab])
-  const run = async (fn, id) => {
+
+  const loadAccounts = async () => {
+    if (!token) return
+    setAccountsLoading(true)
+    setAccountsError('')
+    try {
+      const res = await adminApi.listPharmaciesWithAccounts(token)
+      setAccounts(res.pharmacies || [])
+    } catch (e) {
+      setAccountsError(e.message || 'Could not load accounts.')
+    } finally {
+      setAccountsLoading(false)
+    }
+  }
+
+  const loadTransactions = async () => {
+    if (!token) return
+    setTxnsLoading(true)
+    setTxnsError('')
+    try {
+      const res = await adminApi.listAllTransactions(token)
+      setTxns(res.transactions || [])
+    } catch (e) {
+      setTxnsError(e.message || 'Could not load transactions.')
+    } finally {
+      setTxnsLoading(false)
+    }
+  }
+
+  const loadExpired = async () => {
+    if (!token) return
+    setExpiredLoading(true)
+    setExpiredError('')
+    try {
+      const [alertsRes, medsRes] = await Promise.all([
+        adminApi.listExpiredAlerts(token),
+        adminApi.listExpiredMedicines(token),
+      ])
+      setExpiredAlerts(alertsRes.alerts || [])
+      setReAddAlerts(alertsRes.reAddAlerts || [])
+      setExpiredMeds(medsRes.medicines || [])
+    } catch (e) {
+      setExpiredError(e.message || 'Could not load expired data.')
+    } finally {
+      setExpiredLoading(false)
+    }
+  }
+
+  useEffect(() => { loadPharmacies() }, [token, pharmTab])
+  useEffect(() => { if (section === 'accounts') loadAccounts() }, [token, section])
+  useEffect(() => { if (section === 'transactions') loadTransactions() }, [token, section])
+  useEffect(() => { if (section === 'expired') loadExpired() }, [token, section])
+
+  const runPharmacy = async (fn, id) => {
     setBusyId(id)
     try {
       await fn(id, token)
-      await load()
+      await loadPharmacies()
     } catch (e) {
-      setError(e.message || 'Action failed.')
+      setPharmError(e.message || 'Action failed.')
     } finally {
       setBusyId('')
     }
   }
+
+  const dismissAlert = async (id) => {
+    try {
+      await adminApi.dismissExpiredAlert(id, token)
+      setReAddAlerts((prev) => prev.filter((a) => String(a._id) !== String(id)))
+    } catch (e) {
+      setExpiredError(e.message || 'Could not dismiss alert.')
+    }
+  }
+
+  const txStatusColor = (s) => ({ completed: '#16a34a', refunded: '#b91c1c', pending: '#b45309' }[s] || '#64748b')
+
   return (
     <div className="page-inner">
-      <header className="page-header"><h1>Admin console</h1><p className="form-hint">Review pharmacy registrations and licences.</p></header>
+      <header className="page-header">
+        <h1>Admin console</h1>
+        <p className="form-hint">Manage pharmacies, view transactions, and monitor expired drug alerts.</p>
+      </header>
+
+      {/* Stats bar */}
       {stats ? (
         <div className="stat-grid admin-stat-grid">
           <article className="stat-card"><p className="stat-card__label">Pending</p><p className="stat-card__value">{stats.pendingPharmacies}</p></article>
           <article className="stat-card"><p className="stat-card__label">Approved</p><p className="stat-card__value">{stats.approvedPharmacies}</p></article>
           <article className="stat-card"><p className="stat-card__label">Rejected</p><p className="stat-card__value">{stats.rejectedPharmacies}</p></article>
           <article className="stat-card"><p className="stat-card__label">Customers</p><p className="stat-card__value">{stats.customers}</p></article>
+          <article className="stat-card"><p className="stat-card__label">Medicines</p><p className="stat-card__value">{stats.medicines}</p></article>
+          <article className="stat-card"><p className="stat-card__label">Orders</p><p className="stat-card__value">{stats.orders}</p></article>
+          {stats.expiredMedicines > 0 ? (
+            <article className="stat-card stat-card--danger">
+              <p className="stat-card__label">⚠️ Expired medicines</p>
+              <p className="stat-card__value">{stats.expiredMedicines}</p>
+            </article>
+          ) : null}
         </div>
       ) : null}
-      <section className="form-panel form-panel--admin-toolbar">
-        <div className="admin-tabs" role="tablist">
-          {['pending', 'approved', 'rejected'].map((s) => (
-            <button key={s} type="button" className={`btn btn--sm ${tab === s ? 'btn--primary' : 'btn--outline'}`} onClick={() => setTab(s)}>{s.charAt(0).toUpperCase() + s.slice(1)}</button>
-          ))}
-        </div>
-        <div className="table-actions admin-toolbar">
-          <button type="button" className="btn btn--outline btn--sm" disabled={loading} onClick={load}>Reload</button>
-          <button type="button" className="btn btn--danger btn--sm" onClick={async () => { await logout(); nav('/login') }}>Sign out</button>
-        </div>
-        {loading ? <p className="form-hint">Loading…</p> : null}
-        {error ? <p className="form-hint" role="alert">{error}</p> : null}
-        {!loading && !list.length ? <p className="form-hint admin-empty-msg">No {tab} pharmacies.</p> : null}
-        <div className="card-grid card-grid--medicines">
-          {list.map((p) => (
-            <article className="form-panel pharmacy-order-card" key={p.id}>
-              <h2>{p.name}</h2>
-              <p className="form-hint">{p.email}</p>
-              {p.location ? <p className="form-hint"><strong>Location:</strong> {p.location}</p> : <p className="form-hint">No location yet</p>}
-              {p.hasLicense ? <AdminPharmacyLicenseImg userId={p.id} token={token} /> : <p className="form-hint">No licence uploaded</p>}
-              {tab === 'pending' ? (
-                <div className="table-actions" style={{ marginTop: '1rem' }}>
-                  <button type="button" className="btn btn--primary btn--sm" disabled={busyId === p.id} onClick={() => run(adminApi.approvePharmacy, p.id)}>Approve</button>
-                  <button type="button" className="btn btn--danger btn--sm btn--danger-solid" disabled={busyId === p.id} onClick={() => run(adminApi.rejectPharmacy, p.id)}>Reject</button>
-                </div>
-              ) : null}
-            </article>
-          ))}
-        </div>
-      </section>
+
+      {/* Section tabs */}
+      <div className="admin-section-tabs" role="tablist">
+        {[
+          { key: 'pharmacies', label: 'Pharmacies' },
+          { key: 'accounts', label: 'Pharmacy Accounts' },
+          { key: 'transactions', label: 'Transactions' },
+          { key: 'expired', label: `⚠️ Expired Alerts${(stats?.expiredMedicines > 0 || reAddAlerts.length > 0) ? ` (${(stats?.expiredMedicines || 0) + reAddAlerts.length})` : ''}` },
+        ].map(({ key, label }) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={section === key}
+            className={`btn btn--sm ${section === key ? 'btn--primary' : 'btn--outline'}`}
+            onClick={() => setSection(key)}
+          >{label}</button>
+        ))}
+        <button type="button" className="btn btn--danger btn--sm" style={{ marginLeft: 'auto' }} onClick={async () => { await logout(); nav('/login') }}>Sign out</button>
+      </div>
+
+      {/* ── PHARMACIES TAB ── */}
+      {section === 'pharmacies' ? (
+        <section className="form-panel form-panel--admin-toolbar">
+          <div className="admin-tabs" role="tablist">
+            {['pending', 'approved', 'rejected'].map((s) => (
+              <button key={s} type="button" className={`btn btn--sm ${pharmTab === s ? 'btn--primary' : 'btn--outline'}`} onClick={() => setPharmTab(s)}>
+                {s.charAt(0).toUpperCase() + s.slice(1)}
+              </button>
+            ))}
+            <button type="button" className="btn btn--outline btn--sm" disabled={pharmLoading} onClick={loadPharmacies}>Reload</button>
+          </div>
+          {pharmLoading ? <p className="form-hint">Loading…</p> : null}
+          {pharmError ? <p className="form-hint" role="alert">{pharmError}</p> : null}
+          {!pharmLoading && !pharmList.length ? <p className="form-hint admin-empty-msg">No {pharmTab} pharmacies.</p> : null}
+          <div className="card-grid card-grid--medicines">
+            {pharmList.map((p) => (
+              <article className="form-panel pharmacy-order-card" key={p.id}>
+                <h2>{p.name}</h2>
+                <p className="form-hint">{p.email}</p>
+                {p.location ? <p className="form-hint"><strong>Location:</strong> {p.location}</p> : <p className="form-hint">No location set</p>}
+                {p.accountNumber ? <p className="form-hint"><strong>Account:</strong> <code>{p.accountNumber}</code></p> : <p className="form-hint">No account number</p>}
+                {p.hasLicense ? <AdminPharmacyLicenseImg userId={p.id} token={token} /> : <p className="form-hint">No licence uploaded</p>}
+                {pharmTab === 'pending' ? (
+                  <div className="table-actions" style={{ marginTop: '1rem' }}>
+                    <button type="button" className="btn btn--primary btn--sm" disabled={busyId === p.id} onClick={() => runPharmacy(adminApi.approvePharmacy, p.id)}>Approve</button>
+                    <button type="button" className="btn btn--danger btn--sm btn--danger-solid" disabled={busyId === p.id} onClick={() => runPharmacy(adminApi.rejectPharmacy, p.id)}>Reject</button>
+                  </div>
+                ) : null}
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {/* ── PHARMACY ACCOUNTS TAB ── */}
+      {section === 'accounts' ? (
+        <section className="form-panel">
+          <div className="admin-tabs">
+            <h2 style={{ margin: 0 }}>Pharmacies with account numbers</h2>
+            <button type="button" className="btn btn--outline btn--sm" disabled={accountsLoading} onClick={loadAccounts}>Reload</button>
+          </div>
+          {accountsLoading ? <p className="form-hint">Loading…</p> : null}
+          {accountsError ? <p className="form-hint" role="alert">{accountsError}</p> : null}
+          {!accountsLoading && !accounts.length ? <p className="form-hint">No approved pharmacies have set an account number yet.</p> : null}
+          {accounts.length ? (
+            <div className="table-scroll">
+              <table className="data-table">
+                <thead><tr><th>Pharmacy name</th><th>Email</th><th>Location</th><th>Account number</th></tr></thead>
+                <tbody>
+                  {accounts.map((p) => (
+                    <tr key={p.id}>
+                      <th scope="row">{p.name}</th>
+                      <td>{p.email}</td>
+                      <td>{p.location || '—'}</td>
+                      <td><code className="admin-account-code">{p.accountNumber}</code></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      {/* ── TRANSACTIONS TAB ── */}
+      {section === 'transactions' ? (
+        <section className="form-panel">
+          <div className="admin-tabs">
+            <h2 style={{ margin: 0 }}>All transactions</h2>
+            <button type="button" className="btn btn--outline btn--sm" disabled={txnsLoading} onClick={loadTransactions}>Reload</button>
+          </div>
+          {txnsLoading ? <p className="form-hint">Loading…</p> : null}
+          {txnsError ? <p className="form-hint" role="alert">{txnsError}</p> : null}
+          {!txnsLoading && !txns.length ? <p className="form-hint">No transactions yet.</p> : null}
+          {txns.length ? (
+            <div className="table-scroll">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Pharmacy</th>
+                    <th>Customer</th>
+                    <th>Amount (ETB)</th>
+                    <th>Payment</th>
+                    <th>Status</th>
+                    <th>Order status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {txns.map((tx) => (
+                    <tr key={tx._id}>
+                      <td>{new Date(tx.createdAt).toLocaleDateString()}</td>
+                      <td>{tx.pharmacy?.name || '—'}<br /><small>{tx.pharmacy?.email || ''}</small></td>
+                      <td>{tx.customer?.name || '—'}<br /><small>{tx.customer?.email || ''}</small></td>
+                      <td><strong>{Number(tx.amount || 0).toFixed(2)}</strong></td>
+                      <td>{tx.type || 'chapa'}</td>
+                      <td>
+                        <span className="admin-tx-status" style={{ color: txStatusColor(tx.status) }}>
+                          {tx.status}
+                        </span>
+                      </td>
+                      <td>{tx.order?.status || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      {/* ── EXPIRED ALERTS TAB ── */}
+      {section === 'expired' ? (
+        <section className="form-panel">
+          <div className="admin-tabs">
+            <h2 style={{ margin: 0 }}>⚠️ Expired drug alerts</h2>
+            <button type="button" className="btn btn--outline btn--sm" disabled={expiredLoading} onClick={loadExpired}>Reload</button>
+          </div>
+          {expiredLoading ? <p className="form-hint">Loading…</p> : null}
+          {expiredError ? <p className="form-hint" role="alert">{expiredError}</p> : null}
+
+          {/* Re-add alerts — pharmacy added a medicine matching a previously expired one */}
+          <h3 className="admin-section-heading">
+            🔁 Re-added medicines (previously expired)
+            {reAddAlerts.length > 0 ? <span className="admin-alert-count">{reAddAlerts.length}</span> : null}
+          </h3>
+          <p className="form-hint" style={{ marginBottom: '0.75rem' }}>
+            These medicines were added by a pharmacy whose previous listing of the same medicine had expired. Review the new expiry date before approving.
+          </p>
+          {!expiredLoading && !reAddAlerts.length ? <p className="form-hint">No re-add alerts pending.</p> : null}
+          {reAddAlerts.length ? (
+            <div className="card-grid card-grid--medicines">
+              {reAddAlerts.map((alert) => (
+                <article className="form-panel admin-alert-card" key={String(alert._id)}>
+                  <div className="admin-alert-card__header">
+                    <span className="admin-alert-badge">🔁 Re-added after expiry</span>
+                    <button
+                      type="button"
+                      className="btn btn--outline btn--sm"
+                      onClick={() => dismissAlert(alert._id)}
+                    >
+                      ✓ Reviewed
+                    </button>
+                  </div>
+                  <p className="form-hint"><strong>Pharmacy:</strong> {alert.pharmacy?.name || '—'} — {alert.pharmacy?.email || ''}</p>
+                  <p className="form-hint"><strong>Medicine:</strong> {alert.medicineName}</p>
+                  <div className="admin-alert-expiry-row">
+                    <span className="admin-alert-expiry-old">Previous expiry: <strong>{alert.previousExpiry || '—'}</strong></span>
+                    <span className="admin-alert-expiry-new">New expiry: <strong>{alert.newExpiry || '—'}</strong></span>
+                  </div>
+                  <p className="form-hint" style={{ marginTop: '0.35rem' }}>Added: {new Date(alert.createdAt).toLocaleString()}</p>
+                </article>
+              ))}
+            </div>
+          ) : null}
+
+          {/* Currently expired medicines in stock */}
+          <h3 className="admin-section-heading" style={{ marginTop: '2rem' }}>Expired medicines currently in stock</h3>
+          {!expiredLoading && !expiredMeds.length ? <p className="form-hint">No expired medicines in stock.</p> : null}
+          {expiredMeds.length ? (
+            <div className="table-scroll">
+              <table className="data-table">
+                <thead><tr><th>Medicine</th><th>Generic name</th><th>Pharmacy</th><th>Pharmacy email</th><th>Qty</th><th>Expiry date</th></tr></thead>
+                <tbody>
+                  {expiredMeds.map((m) => (
+                    <tr key={m.id} className="admin-expired-row">
+                      <th scope="row">{m.name}</th>
+                      <td>{m.genericName || '—'}</td>
+                      <td>{m.pharmacyName}</td>
+                      <td>{m.pharmacyEmail}</td>
+                      <td>{m.quantity}</td>
+                      <td><strong style={{ color: '#b91c1c' }}>{m.expiry}</strong></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+
+          {/* Orders that contained expired medicines */}
+          <h3 className="admin-section-heading" style={{ marginTop: '2rem' }}>Orders containing expired medicines</h3>
+          {!expiredLoading && !expiredAlerts.length ? <p className="form-hint">No orders with expired medicines found.</p> : null}
+          {expiredAlerts.length ? (
+            <div className="card-grid card-grid--medicines">
+              {expiredAlerts.map((alert) => (
+                <article className="form-panel admin-alert-card" key={String(alert.orderId)}>
+                  <div className="admin-alert-card__header">
+                    <span className="admin-alert-badge">⚠️ Expired drug in order</span>
+                    <span className="form-hint">#{String(alert.orderId).slice(-6)}</span>
+                  </div>
+                  <p className="form-hint"><strong>Date:</strong> {new Date(alert.createdAt).toLocaleString()}</p>
+                  <p className="form-hint"><strong>Order status:</strong> {alert.orderStatus}</p>
+                  {alert.customer ? (
+                    <p className="form-hint"><strong>Customer:</strong> {alert.customer.name} — {alert.customer.email}</p>
+                  ) : null}
+                  <div className="admin-alert-card__items">
+                    {alert.expiredItems.map((item, i) => (
+                      <div key={i} className="admin-alert-card__item">
+                        <span>{item.medicineName}</span>
+                        <span className="form-hint">{item.pharmacyName}</span>
+                        <span className="form-hint">Qty: {item.quantity}</span>
+                        <span style={{ color: '#b91c1c', fontWeight: 700 }}>Expired: {item.expiry}</span>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
     </div>
   )
 }
@@ -1179,6 +1470,8 @@ export default function App() {
           pharmacyLocation: m.pharmacyLocation || '',
           pharmacyLat: m.pharmacyLat ?? null,
           pharmacyLng: m.pharmacyLng ?? null,
+          pharmacyAccountNumber: m.pharmacyAccountNumber || '',
+          expiry: m.expiry || '',
           price: Number(m.price) || 0,
           quantity: Number(m.quantity) || 0,
         }))
@@ -1264,7 +1557,7 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/" element={<PublicLayout><Home medicines={medicines} loading={publicLoading} error={publicError} /></PublicLayout>} />
+      <Route path="/" element={<PublicLayout><Home /></PublicLayout>} />
       <Route path="/search" element={<PublicLayout><Search medicines={medicines} loading={publicLoading} error={publicError} /></PublicLayout>} />
       <Route path="/pharmacies" element={<PublicLayout><Pharmacies medicines={medicines} loading={publicLoading} error={publicError} /></PublicLayout>} />
       <Route path="/cart" element={<CustomerRoute><PublicLayout><CartPage /></PublicLayout></CustomerRoute>} />

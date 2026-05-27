@@ -2311,10 +2311,128 @@ main {
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-bottom: 1rem;
+  align-items: center;
 }
 
 .admin-stat-grid {
   margin-bottom: 1.25rem;
+}
+
+/* Danger stat card for expired medicines count */
+.stat-card--danger {
+  border-color: #f97316;
+  background: #fff7ed;
+}
+[data-theme="dark"] .stat-card--danger {
+  background: #2d1a0a;
+  border-color: #c2410c;
+}
+.stat-card--danger .stat-card__label { color: #9a3412; }
+.stat-card--danger .stat-card__value { color: #c2410c; }
+
+/* Admin section tabs (top-level navigation) */
+.admin-section-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.admin-section-heading {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 1.25rem 0 0.75rem;
+  color: var(--color-text);
+}
+
+/* Expired medicine row highlight */
+.admin-expired-row td,
+.admin-expired-row th {
+  background: #fff7ed;
+}
+[data-theme="dark"] .admin-expired-row td,
+[data-theme="dark"] .admin-expired-row th {
+  background: #2d1a0a;
+}
+
+/* Admin alert card (expired drug in order) */
+.admin-alert-card {
+  border-color: #f97316;
+}
+.admin-alert-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.admin-alert-badge {
+  background: #fff7ed;
+  color: #9a3412;
+  border: 1px solid #f97316;
+  border-radius: 999px;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+.admin-alert-card__items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.admin-alert-card__item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: baseline;
+  padding: 0.4rem 0.6rem;
+  background: #fff7ed;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+}
+[data-theme="dark"] .admin-alert-card__item { background: #2d1a0a; }
+
+/* Account number code style */
+.admin-account-code {
+  font-family: monospace;
+  font-size: 0.9375rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+}
+
+/* Transaction status */
+.admin-tx-status {
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+/* Expired medicine badge on cards */
+.medicine-card__expired-badge {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+  border-radius: var(--radius-sm);
+  padding: 0.3rem 0.6rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+[data-theme="dark"] .medicine-card__expired-badge {
+  background: #2d0a0a;
+  border-color: #b91c1c;
+  color: #fca5a5;
+}
+
+.medicine-card--expired,
+.pharmacy-result-card--expired {
+  opacity: 0.75;
+  border-color: #fca5a5;
 }
 
 @keyframes fade-up {

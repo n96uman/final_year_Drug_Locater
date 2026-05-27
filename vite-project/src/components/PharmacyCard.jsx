@@ -62,6 +62,7 @@ export default function PharmacyCard({ medicine, onAddToCart }) {
         <span className="pharmacy-result-card__qty">Available: <strong>{medicine.quantity ?? 0}</strong></span>
         <span className="pharmacy-result-card__price">{medicine.price} ETB</span>
       </div>
+      {medicine.expiry ? <p className="form-hint">Expiry: {medicine.expiry}</p> : null}
       {medicine.distanceKm != null ? <p className="form-hint">Distance: {medicine.distanceKm.toFixed(1)} km</p> : null}
       <div className="pharmacy-result-card__actions">
         <button type="button" className="btn btn--primary btn--sm" onClick={add}>Add to Cart</button>

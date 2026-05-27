@@ -15,7 +15,6 @@ function openDirections(pharmacyLat, pharmacyLng, pharmacyLocation) {
           )
         },
         () => {
-          // fallback: open destination only, let Google Maps ask for origin
           window.open(
             `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`,
             '_blank',
@@ -41,6 +40,12 @@ function openDirections(pharmacyLat, pharmacyLng, pharmacyLocation) {
   }
 }
 
+function isExpired(expiry) {
+  if (!expiry) return false
+  const today = new Date().toISOString().slice(0, 10)
+  return expiry < today
+}
+
 export default function MedicineCard({ medicine, onAddToCart }) {
   const { currentUser } = useAuth()
   const nav = useNavigate()
@@ -60,6 +65,7 @@ export default function MedicineCard({ medicine, onAddToCart }) {
       <dl className="medicine-card__meta">
         <div><dt>Pharmacy</dt><dd>{medicine.pharmacyName}</dd></div>
         <div><dt>Stock</dt><dd>{medicine.quantity ?? 0}</dd></div>
+        {medicine.expiry ? <div><dt>Expiry</dt><dd>{medicine.expiry}</dd></div> : null}
         {medicine.distanceKm != null ? <div><dt>Distance</dt><dd>{medicine.distanceKm.toFixed(1)} km</dd></div> : null}
       </dl>
       <div className="medicine-card__pricing">
