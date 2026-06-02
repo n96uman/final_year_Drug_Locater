@@ -12,6 +12,6 @@ cd admin
 npx serve .
 ```
 
-Default admin login: email `admin`, password `finalyear` (see root README).
+Default admin login: email `****`, password `*******` (see root README).
 
 You can also use `/admin` in the React app.
